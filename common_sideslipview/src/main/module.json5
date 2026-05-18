@@ -1,0 +1,9 @@
+{
+  "module": {
+    "name": "common_sideslipview",
+    "type": "har",
+    "deviceTypes": [
+      "default"
+    ]
+  }
+}

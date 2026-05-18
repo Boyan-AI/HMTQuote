@@ -1,6 +1,5 @@
 {
   "app": {
-    "signingConfigs": [],
     "products": [
       {
         "name": "default",
@@ -37,6 +36,10 @@
           ]
         }
       ]
+    },
+    {
+      "name": "common_sideslipview",
+      "srcPath": "./common_sideslipview",
     }
   ]
 }

@@ -1,0 +1,24 @@
+{
+  "color": [
+    {
+      "name": "elements_text_primary_02",
+      "value": "#D6FFFFFF"
+    },
+    {
+      "name": "elements_text_primary_01",
+      "value": "#FF527DFF"
+    },
+    {
+      "name": "elements_button_bg_on_color_02",
+      "value": "#FFFFFFFF"
+    },
+    {
+      "name": "elements_text_tertiary",
+      "value": "#66FFFFFF"
+    },
+    {
+      "name": "surface_layer1_foreground",
+      "value": "#FF1C1C1C"
+    }
+  ]
+}
