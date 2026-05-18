@@ -388,3 +388,181 @@ export struct TComponent {
                     if (state == ScrollState.Scroll || state == ScrollState.Fling) {
                       this.gestureMonitor.onScroll();
                     }
+                    let leftCurrentOffset = this.scrollController.leftHeadScroller.currentOffset().xOffset;
+                    let rightCurrentOffset = this.scrollController.rightHeadScroller.currentOffset().xOffset;
+
+                    if ((offset > 0) && (rightCurrentOffset < offset)) {
+                      offset = rightCurrentOffset;
+                    }
+                    if ((offset < 0) && (leftCurrentOffset < -offset)) {
+                      offset = -leftCurrentOffset;
+                    }
+
+                    this.leftTotalXOffset = leftCurrentOffset + offset;
+                    this.rightTotalXOffset = rightCurrentOffset - offset;
+                    this.scrollController.LeftHorizontal(offset, index, false);
+                    return { offsetRemain: offset }
+                  })
+                  .onScrollStop(() => {
+                    this.gestureMonitor.onScrollStop();
+                    console.info('lql onScrollStop')
+                  })
+                  .gesture(
+                    GestureGroup(GestureMode.Exclusive,
+                      LongPressGesture()
+                        .onAction((event: GestureEvent) => {
+                          if (event) {
+                            this.notifyLeftLongPress(index);
+                          }
+                        }),
+
+                      TapGesture()
+                        .onAction((event: GestureEvent) => {
+                          if (event) {
+                            this.notifyLeftTap(index);
+                          }
+                        })
+                    )
+                  )
+
+                  // 中间数据
+                  ItemComponent({
+                    itemData: item.centerData,
+                    isHead: false,
+                    isCenter: true
+                  })
+
+                  // 右边数据
+                  List({ scroller: this.scrollController.rightItemScroller[index] }) {
+                    ForEach(item.rightData, (rightLeft: ListItemData) => {
+                      ListItem() {
+                        ItemComponent({
+                          itemData: rightLeft,
+                          isHead: false,
+                          isCenter: false,
+                          itemBackgroundColor: this.dataView.GetQuadrantColor((index <= this.dataView.line.position) ?
+                            1 :
+                            4)
+                        })
+                      }
+                    })
+                  }
+                  .visibility((this.isExpand == EXPAND_STATE.Left) ? Visibility.None : Visibility.Visible)
+                  .onAttach(() => {
+                    if (this.rightTotalXOffset == 0) {
+                      this.scrollController.rightItemScroller[index].scrollEdge(Edge.Start)
+                    } else {
+                      this.scrollController.rightItemScroller[index].scrollTo({
+                        xOffset: this.rightTotalXOffset,
+                        yOffset: 0
+                      });
+                    }
+                  })
+                  .height(ITEM_HEIGHT)
+                  .layoutWeight(1)
+                  .animation({ duration: ANIMATION_DURATION })
+                  .scrollBar(BarState.Off)
+                  .edgeEffect(EdgeEffect.None)
+                  .listDirection(Axis.Horizontal)
+                  .nestedScroll({
+                    scrollForward: NestedScrollMode.PARALLEL,
+                    scrollBackward: NestedScrollMode.PARALLEL
+                  })
+                  .onScrollStop(() => {
+                    this.gestureMonitor.onScrollStop();
+                  })
+                  .onScrollFrameBegin((offset: number, state) => {
+                    if (state == ScrollState.Scroll || state == ScrollState.Fling) {
+                      this.gestureMonitor.onScroll();
+                    }
+                    let leftCurrentOffset = this.scrollController.leftHeadScroller.currentOffset().xOffset;
+                    let rightCurrentOffset = this.scrollController.rightHeadScroller.currentOffset().xOffset;
+
+                    if ((offset > 0) && (leftCurrentOffset < offset)) {
+                      offset = leftCurrentOffset;
+                    }
+                    if ((offset < 0) && (rightCurrentOffset < -offset)) {
+                      offset = -rightCurrentOffset;
+                    }
+
+                    this.leftTotalXOffset = leftCurrentOffset - offset;
+                    this.rightTotalXOffset = rightCurrentOffset + offset;
+                    this.scrollController.RightHorizontal(offset, index, false);
+                    return { offsetRemain: offset }
+                  })
+                  .gesture(
+                    GestureGroup(GestureMode.Exclusive,
+                      LongPressGesture()
+                        .onAction((event: GestureEvent) => {
+                          if (event) {
+                            this.notifyRightLongPress(index);
+                          }
+                        }),
+
+                      TapGesture()
+                        .onAction((event: GestureEvent) => {
+                          if (event) {
+                            this.notifyRightTap(index);
+                          }
+                        })
+                    )
+                  )
+                }
+              }
+              .onVisibleAreaChange([0.0, 1], (isExpanding, currentRatio) => {
+                if (index == 0) {
+                  if (currentRatio >= 1) {
+                    this.reachStart = true;
+                  } else {
+                    this.reachStart = false;
+                  }
+                }
+                if (index == this.dataView.data.length - 1) {
+                  if (currentRatio >= 1) {
+                    this.reachEnd = true;
+                  } else {
+                    this.reachEnd = false;
+                  }
+                }
+              })
+            })
+          }
+          .onAttach(() => {
+            this.tController.scroll2center();
+          })
+          .padding({ bottom: 1 })
+          .onScrollStop(() => {
+            this.gestureMonitor.onScrollStop();
+          })
+          .onScrollVisibleContentChange((start, end) => {
+            this.scrollController.V2H(this.leftTotalXOffset, this.rightTotalXOffset);
+            this.gestureMonitor.onScrollVisibleContentChange(start, end);
+          })
+          .onScrollFrameBegin((offset: number, state) => {
+            if (state == ScrollState.Scroll || state == ScrollState.Fling) {
+              this.gestureMonitor.onScroll();
+            }
+            if (!this.reachStart && !this.reachEnd) {
+              this.linePos = this.GetLinePos(offset);
+            }
+            return { offsetRemain: offset }
+          })
+          .onDidScroll(() => {
+            this.linePos = this.GetLinePos(0);
+          })
+          .edgeEffect(EdgeEffect.None)
+          .scrollBar(BarState.Off)
+          .sticky(StickyStyle.Header)
+          .width(FILL_UP_STRING)
+          .height(FILL_UP_STRING)
+
+          DividerWithNum({ line: this.dataView.line })
+            .position({ x: 0, y: this.linePos })
+            .hitTestBehavior(HitTestMode.Transparent)
+        }
+        .layoutWeight(1)
+        .clip(true)
+      }
+    }
+  }
+}
