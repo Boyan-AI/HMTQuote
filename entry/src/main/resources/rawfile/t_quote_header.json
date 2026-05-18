@@ -1,0 +1,88 @@
+{
+  "hqData": [
+    {
+      "mobileid": 1,
+      "name": "最新价"
+    },
+    {
+      "mobileid": 2,
+      "name": "隐含波动率"
+    },
+    {
+      "mobileid": 3,
+      "name": "买价"
+    },
+    {
+      "mobileid": 4,
+      "name": "卖价"
+    },
+    {
+      "mobileid": 5,
+      "name": "成交量"
+    },
+    {
+      "mobileid": 6,
+      "name": "持仓量"
+    },
+    {
+      "mobileid": 7,
+      "name": "买量"
+    },
+    {
+      "mobileid": 8,
+      "name": "卖量"
+    },
+    {
+      "mobileid": 9,
+      "name": "内在价值"
+    },
+    {
+      "mobileid": 10,
+      "name": "时间价值"
+    },
+    {
+      "mobileid": 11,
+      "name": "杠杠比率"
+    },
+    {
+      "mobileid": 12,
+      "name": "溢价率"
+    },
+    {
+      "mobileid": 13,
+      "name": "真实杠杠率"
+    },
+    {
+      "mobileid": 14,
+      "name": "理论价格"
+    },
+    {
+      "mobileid": 15,
+      "name": "Delta"
+    },
+    {
+      "mobileid": 16,
+      "name": "Gamma"
+    },
+    {
+      "mobileid": 17,
+      "name": "Vega"
+    },
+    {
+      "mobileid": 18,
+      "name": "Theta"
+    },
+    {
+      "mobileid": 19,
+      "name": "Rho"
+    },
+    {
+      "mobileid": 20,
+      "name": "涨跌"
+    },
+    {
+      "mobileid": 21,
+      "name": "涨跌幅"
+    }
+  ]
+}
