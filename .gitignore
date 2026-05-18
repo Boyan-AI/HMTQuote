@@ -10,3 +10,7 @@
 /.clang-tidy
 **/.test
 /.appanalyzer
+/.agent/
+/.claude/
+/.codegraph/
+/.mcp.json
