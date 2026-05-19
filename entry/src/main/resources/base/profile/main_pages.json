@@ -1,5 +1,9 @@
 {
   "src": [
-    "pages/Index"
+    "pages/Index",
+    "pages/PerfTest",
+    "pages/Info",
+    "pages/QuoteTableExample",
+    "pages/QuoteDetail"
   ]
 }
