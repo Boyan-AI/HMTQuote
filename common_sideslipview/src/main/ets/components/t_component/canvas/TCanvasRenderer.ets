@@ -498,3 +498,229 @@ export class TCanvasRenderer {
       this.context.fillText(text, centerX, centerY);
       return;
     }
+    this.context.fillText(text, centerX, centerY - CANVAS_CELL_SUB_LINE_GAP);
+    this.setFontSize(CANVAS_CELL_SUB_FONT_SIZE);
+    this.setFillStyle(this.theme().cellSubTextColor);
+    this.context.fillText(subText, centerX, centerY + CANVAS_CELL_SUB_LINE_GAP);
+    this.setFontSize(CANVAS_CELL_FONT_SIZE);
+  }
+
+  /**
+   * 绘制中间行权价单元格。
+   */
+  private drawCenterCell(row: number, y: number): void {
+    let centerX = this.centerStartX();
+    if (!this.isVisibleX(centerX, CENTER_ITEM_WIDTH)) {
+      return;
+    }
+    let centerItem = this.state.dataAdapter.centerItem(row);
+    this.setFillStyle(this.theme().centerBackgroundColor);
+    this.context.fillRect(centerX, y, CENTER_ITEM_WIDTH, ITEM_HEIGHT);
+    this.setFillStyle(this.state.dataAdapter.canvasColor(centerItem.fontColor,
+      this.theme().centerTextColor));
+    // CENTER 与 CELL 当前同字号；setFontSize 命中缓存时不会重设。
+    this.setFontSize(CANVAS_CENTER_FONT_SIZE);
+    this.context.fillText(this.state.dataAdapter.displayText(centerItem.text), centerX + CENTER_ITEM_WIDTH / 2,
+      y + ITEM_HEIGHT / 2);
+  }
+
+  /**
+   * 绘制最新价线和最新价标签。
+   */
+  private drawPriceLine(): void {
+    if (this.state.dataView.line.position < 0) {
+      return;
+    }
+    let y = this.headerHeight() + (this.state.dataView.line.position + 1) * ITEM_HEIGHT - this.state.verticalOffset;
+    if (y < this.headerHeight() - ITEM_HEIGHT || y > this.state.viewportHeight + ITEM_HEIGHT) {
+      return;
+    }
+    this.setStrokeStyle(this.theme().priceLineColor);
+    this.setLineWidth(1);
+    this.context.beginPath();
+    this.context.moveTo(0, y);
+    this.context.lineTo(this.state.viewportWidth, y);
+    this.context.stroke();
+
+    let labelHeight = CANVAS_PRICE_LABEL_HEIGHT;
+    let centerX = this.centerStartX();
+    let labelText = this.state.dataAdapter.displayText(this.state.dataView.line.value);
+    // 切到标签字号再 measureText，否则按上一处字号测得宽度会偏大/偏小，导致左右留白不均。
+    this.setFontSize(CANVAS_PRICE_LABEL_FONT_SIZE);
+    let textWidth = this.context.measureText(labelText).width;
+    // 宽度跟随文本，并限制在 [MIN, CENTER_ITEM_WIDTH - 4]，保证两侧不溢出行权价列。
+    let desired = textWidth + CANVAS_PRICE_LABEL_PADDING_X * 2;
+    let maxWidth = Math.max(CENTER_ITEM_WIDTH - 4, CANVAS_PRICE_LABEL_MIN_WIDTH);
+    let labelWidth = Math.min(maxWidth, Math.max(CANVAS_PRICE_LABEL_MIN_WIDTH, desired));
+    let labelX = centerX + (CENTER_ITEM_WIDTH - labelWidth) / 2;
+    let labelY = y - labelHeight / 2;
+    // 圆角矩形：半径不超过短边一半，避免极小标签出现描边不闭合。
+    let radius = Math.min(CANVAS_PRICE_LABEL_RADIUS, labelHeight / 2, labelWidth / 2);
+    this.setFillStyle(this.theme().priceLineColor);
+    this.fillRoundedRect(labelX, labelY, labelWidth, labelHeight, radius);
+    this.setFillStyle(this.theme().priceLabelTextColor);
+    this.context.fillText(labelText, centerX + CENTER_ITEM_WIDTH / 2, y);
+  }
+
+  /**
+   * 用 path 画圆角矩形并 fill。Canvas2D 不提供 roundRect 时手写四段 quadraticCurve。
+   */
+  private fillRoundedRect(x: number, y: number, width: number, height: number, radius: number): void {
+    let r = Math.max(0, radius);
+    let right = x + width;
+    let bottom = y + height;
+    this.context.beginPath();
+    this.context.moveTo(x + r, y);
+    this.context.lineTo(right - r, y);
+    this.context.quadraticCurveTo(right, y, right, y + r);
+    this.context.lineTo(right, bottom - r);
+    this.context.quadraticCurveTo(right, bottom, right - r, bottom);
+    this.context.lineTo(x + r, bottom);
+    this.context.quadraticCurveTo(x, bottom, x, bottom - r);
+    this.context.lineTo(x, y + r);
+    this.context.quadraticCurveTo(x, y, x + r, y);
+    this.context.closePath();
+    this.context.fill();
+  }
+
+  /**
+   * 计算表头总高度。
+   */
+  private headerHeight(): number {
+    return (this.state.config.showSideTitleHeader ? CANVAS_ACTION_HEIGHT : 0) + HEAD_HEIGHT;
+  }
+
+  /**
+   * 获取当前行数。
+   */
+  private rows(): number {
+    return this.state.dataAdapter.rows();
+  }
+
+  /**
+   * 获取当前每侧列数。
+   */
+  private cols(): number {
+    return this.state.dataAdapter.cols();
+  }
+
+  /**
+   * 左侧可见列范围，避免业务列数较多时每帧全列遍历。
+   */
+  private visibleLeftStartCol(): number {
+    if (!this.isLeftVisible()) {
+      return 1;
+    }
+    return Math.max(0, Math.floor(this.state.horizontalOffset / SIDE_ITEM_WIDTH) -
+      this.state.config.visibleColBuffer);
+  }
+
+  private visibleLeftEndCol(): number {
+    if (!this.isLeftVisible()) {
+      return 0;
+    }
+    return Math.min(this.cols() - 1, Math.ceil((this.state.horizontalOffset + this.centerStartX()) /
+      SIDE_ITEM_WIDTH) + this.state.config.visibleColBuffer);
+  }
+
+  /**
+   * 右侧可见列范围，避免业务列数较多时每帧全列遍历。
+   */
+  private visibleRightStartCol(): number {
+    if (!this.isRightVisible()) {
+      return 1;
+    }
+    return Math.max(0, Math.floor(this.state.horizontalOffset / SIDE_ITEM_WIDTH) -
+      this.state.config.visibleColBuffer);
+  }
+
+  private visibleRightEndCol(): number {
+    if (!this.isRightVisible()) {
+      return 0;
+    }
+    let visibleRightWidth = Math.max(this.state.viewportWidth - this.rightStartX(), 0);
+    return Math.min(this.cols() - 1, Math.ceil((this.state.horizontalOffset + visibleRightWidth) /
+      SIDE_ITEM_WIDTH) + this.state.config.visibleColBuffer);
+  }
+
+  /**
+   * 计算当前可见起始行。
+   */
+  private visibleStartRow(): number {
+    let row = Math.floor(Math.max(this.state.verticalOffset, 0) / ITEM_HEIGHT) - this.state.config.visibleRowBuffer;
+    return Math.max(0, row);
+  }
+
+  /**
+   * 计算当前可见结束行。
+   */
+  private visibleEndRow(): number {
+    let visibleBodyHeight = Math.max(this.state.viewportHeight - this.headerHeight(), 0);
+    let bottom = this.state.verticalOffset + visibleBodyHeight;
+    let row = Math.ceil(Math.max(bottom, 0) / ITEM_HEIGHT) + this.state.config.visibleRowBuffer;
+    return Math.min(this.rows() - 1, row);
+  }
+
+  /**
+   * 判断左侧区域是否可见。
+   */
+  private isLeftVisible(): boolean {
+    return this.state.expandState !== EXPAND_STATE.Right;
+  }
+
+  /**
+   * 判断右侧区域是否可见。
+   */
+  private isRightVisible(): boolean {
+    return this.state.expandState !== EXPAND_STATE.Left;
+  }
+
+  /**
+   * 获取中间列左边界。
+   */
+  private centerStartX(): number {
+    return this.state.centerX;
+  }
+
+  /**
+   * 获取右侧数据起始边界。
+   */
+  private rightStartX(): number {
+    return this.centerStartX() + CENTER_ITEM_WIDTH;
+  }
+
+  /**
+   * 计算左侧指定列的绘制 x 坐标。
+   */
+  private leftCellX(col: number): number {
+    return this.centerStartX() - (col + 1) * SIDE_ITEM_WIDTH + this.state.horizontalOffset;
+  }
+
+  /**
+   * 计算右侧指定列的绘制 x 坐标。
+   */
+  private rightCellX(col: number): number {
+    return this.rightStartX() + col * SIDE_ITEM_WIDTH - this.state.horizontalOffset;
+  }
+
+  /**
+   * 判断普通横向区域是否在视口内。
+   */
+  private isVisibleX(x: number, width: number): boolean {
+    return x + width >= 0 && x <= this.state.viewportWidth;
+  }
+
+  /**
+   * 判断左侧列是否在左侧可见范围内。
+   */
+  private isVisibleLeftX(x: number, width: number): boolean {
+    return x < this.centerStartX() && x + width >= 0;
+  }
+
+  /**
+   * 判断右侧列是否在右侧可见范围内。
+   */
+  private isVisibleRightX(x: number, width: number): boolean {
+    return x + width > this.rightStartX() && x <= this.state.viewportWidth;
+  }
+}
