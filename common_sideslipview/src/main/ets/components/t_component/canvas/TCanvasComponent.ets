@@ -698,3 +698,183 @@ export struct TCanvasComponent {
     this.stopInertia();
     this.inertiaVelocity = Math.max(-CANVAS_INERTIA_MAX_VELOCITY, Math.min(velocity, CANVAS_INERTIA_MAX_VELOCITY));
     this.inertiaTimerId = setInterval(() => {
+      if (Math.abs(this.inertiaVelocity) < CANVAS_INERTIA_MIN_VELOCITY) {
+        this.stopInertia();
+        this.finishScrolling();
+        return;
+      }
+      let beforeX = this.horizontalOffset;
+      let beforeY = this.verticalOffset;
+      if (this.panAxis === CanvasPanAxis.Horizontal) {
+        this.horizontalOffset += this.inertiaVelocity * CANVAS_INERTIA_FRAME_MS;
+      } else {
+        let relayResult = TCanvasScrollRelay.applyOffset(this.verticalOffset,
+          this.inertiaVelocity * CANVAS_INERTIA_FRAME_MS, this.maxVerticalOffset());
+        this.verticalOffset = relayResult.nextOffset;
+        if (relayResult.remainOffset !== 0) {
+          this.onVerticalEdgeScroll(relayResult.remainOffset);
+        }
+      }
+      this.clampOffsets();
+      this.requestRedraw();
+      if (this.panAxis === CanvasPanAxis.Horizontal && beforeX === this.horizontalOffset &&
+        beforeY === this.verticalOffset) {
+        this.stopInertia();
+        this.finishScrolling();
+        return;
+      }
+      this.inertiaVelocity *= CANVAS_INERTIA_DECAY;
+    }, CANVAS_INERTIA_FRAME_MS);
+  }
+
+  /**
+   * 根据起手区域计算横向手势方向。
+   */
+  private horizontalGestureSign(): number {
+    return this.panStartedOnLeft ? 1 : -1;
+  }
+
+  /**
+   * 更新手势速度，用于松手后的惯性滑动。
+   */
+  private updatePanVelocity(event: GestureEvent): void {
+    let now = Date.now();
+    let dt = Math.max(now - this.lastPanAt, 1);
+    let offsetX = Number(event.offsetX);
+    let offsetY = Number(event.offsetY);
+    this.panVelocityX = this.horizontalGestureSign() * (offsetX - this.lastPanOffsetX) *
+    Math.max(this.config.horizontalScrollSensitivity, 0.1) / dt;
+    this.panVelocityY = -(offsetY - this.lastPanOffsetY) * Math.max(this.config.verticalScrollSensitivity, 0.1) / dt;
+    this.lastPanOffsetX = offsetX;
+    this.lastPanOffsetY = offsetY;
+    this.lastPanAt = now;
+  }
+
+  /**
+   * 记录 Canvas 触摸序列，用于区分真实短按点击、长按和拖动。
+   */
+  private handleTouchForTapGuard(event: TouchEvent): void {
+    let touch: TouchObject | undefined = event.touches[0] ?? event.changedTouches[0];
+    if (!touch) {
+      return;
+    }
+    if (event.type === TouchType.Down) {
+      this.panStartX = touch.x;
+      this.tapGuard.handleDown(touch.x, touch.y);
+      return;
+    }
+    if (event.type === TouchType.Move) {
+      this.tapGuard.handleMove(touch.x, touch.y);
+      return;
+    }
+    if (event.type === TouchType.Up) {
+      this.tapGuard.handleUp();
+      return;
+    }
+    if (event.type === TouchType.Cancel) {
+      this.tapGuard.handleCancel();
+    }
+  }
+
+  /**
+   * 构建 Canvas 视图和手势处理。
+   */
+  build() {
+    Canvas(this.context)
+      .width('100%')
+      .height('100%')
+      .backgroundColor(this.canvasBackgroundColor)
+      .borderWidth(0.5)
+      .borderColor('#0a000000')
+      .onReady(() => {
+        this.centerLatestPriceLineIfNeeded();
+        this.requestRedraw();
+      })
+      .onClick((event: ClickEvent) => {
+        if (!this.tapGuard.shouldAcceptClick()) {
+          return;
+        }
+        this.handleTap(event.x, event.y);
+      })
+      .onTouch((event: TouchEvent) => {
+        this.handleTouchForTapGuard(event);
+      })
+      .onAreaChange((_oldArea: Area, newArea: Area) => {
+        if (Number(newArea.width) > 0) {
+          this.viewportWidth = Number(newArea.width);
+        }
+        if (Number(newArea.height) > 0) {
+          this.viewportHeight = Number(newArea.height);
+        }
+        this.centerX = this.targetCenterStartX();
+        this.clampOffsets();
+        this.centerLatestPriceLineIfNeeded();
+        this.requestRedraw();
+      })
+      .gesture(
+        GestureGroup(GestureMode.Parallel,
+          LongPressGesture({ repeat: false, duration: CANVAS_TAP_MAX_DURATION_MS })
+            .onAction((event: GestureEvent) => {
+              let finger = event.fingerList[0];
+              if (finger) {
+                this.handleLongPress(finger.localX, finger.localY);
+              }
+            }),
+          PanGesture({ direction: PanDirection.All })
+          .onActionStart(() => {
+            this.stopInertia();
+            this.isPanning = true;
+            this.gestureMonitor.onScroll();
+            this.panStartHorizontalOffset = this.horizontalOffset;
+            this.lastVerticalGestureOffset = 0;
+            this.panStartedOnLeft = this.panStartX < this.centerStartX();
+            this.panAxis = CanvasPanAxis.None;
+            this.lastPanOffsetX = 0;
+            this.lastPanOffsetY = 0;
+            this.lastPanAt = Date.now();
+            this.panVelocityX = 0;
+            this.panVelocityY = 0;
+          })
+          .onActionUpdate((event: GestureEvent) => {
+            this.updatePanVelocity(event);
+            if (this.panAxis === CanvasPanAxis.None) {
+              let absX = Math.abs(event.offsetX);
+              let absY = Math.abs(event.offsetY);
+              if (Math.max(absX, absY) < CANVAS_PAN_AXIS_LOCK_THRESHOLD) {
+                return;
+              }
+              this.panAxis = absX >= absY ? CanvasPanAxis.Horizontal : CanvasPanAxis.Vertical;
+            }
+            if (this.panAxis === CanvasPanAxis.Horizontal) {
+              this.horizontalOffset = this.panStartHorizontalOffset + this.horizontalGestureSign() * event.offsetX *
+              Math.max(this.config.horizontalScrollSensitivity, 0.1);
+            } else {
+              let verticalGestureOffset = -event.offsetY * Math.max(this.config.verticalScrollSensitivity, 0.1);
+              let deltaOffset = verticalGestureOffset - this.lastVerticalGestureOffset;
+              let relayResult = TCanvasScrollRelay.applyOffset(this.verticalOffset, deltaOffset,
+                this.maxVerticalOffset());
+              this.verticalOffset = relayResult.nextOffset;
+              if (relayResult.remainOffset !== 0) {
+                this.onVerticalEdgeScroll(relayResult.remainOffset);
+              }
+              this.lastVerticalGestureOffset = verticalGestureOffset;
+            }
+            this.clampOffsets();
+            this.requestRedraw();
+          })
+          .onActionEnd(() => {
+            if (this.panAxis === CanvasPanAxis.None) {
+              this.finishScrolling();
+              return;
+            }
+            this.startInertia();
+          })
+          .onActionCancel(() => {
+            this.stopInertia();
+            this.panAxis = CanvasPanAxis.None;
+            this.finishScrolling();
+          })
+        )
+      )
+  }
+}
