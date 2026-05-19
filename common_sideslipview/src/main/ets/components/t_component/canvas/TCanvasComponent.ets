@@ -498,3 +498,203 @@ export struct TCanvasComponent {
       this.clampOffsets();
       this.requestRedraw();
       if (progress >= 1) {
+        this.centerX = to;
+        this.stopLayoutAnimation();
+        this.clampOffsets();
+        this.requestRedraw();
+      }
+    }, CANVAS_LAYOUT_ANIMATION_FRAME_MS);
+  }
+
+  /**
+   * 处理表头展开收起点击。
+   */
+  private handleHeaderTap(x: number, y: number): boolean {
+    if (!this.config.showSideTitleHeader) {
+      return false;
+    }
+    if (y > CANVAS_ACTION_HEIGHT) {
+      return false;
+    }
+    if (x < this.centerStartX()) {
+      this.expandState = this.expandState === EXPAND_STATE.Left ? EXPAND_STATE.Normal : EXPAND_STATE.Left;
+      this.animateLayoutToTarget();
+      return true;
+    }
+    if (x > this.rightStartX()) {
+      this.expandState = this.expandState === EXPAND_STATE.Right ? EXPAND_STATE.Normal : EXPAND_STATE.Right;
+      this.animateLayoutToTarget();
+      return true;
+    }
+    this.onSettingClick();
+    return true;
+  }
+
+  /**
+   * 命中左侧指标列，未命中真实列时返回 -1。
+   */
+  private hitLeftCol(x: number): number {
+    for (let col = 0; col < this.cols(); col++) {
+      let cellX = this.leftCellX(col);
+      if (this.isVisibleLeftX(cellX, SIDE_ITEM_WIDTH) && x >= cellX && x < cellX + SIDE_ITEM_WIDTH) {
+        return col;
+      }
+    }
+    return -1;
+  }
+
+  /**
+   * 命中右侧指标列，未命中真实列时返回 -1。
+   */
+  private hitRightCol(x: number): number {
+    for (let col = 0; col < this.cols(); col++) {
+      let cellX = this.rightCellX(col);
+      if (this.isVisibleRightX(cellX, SIDE_ITEM_WIDTH) && x >= cellX && x < cellX + SIDE_ITEM_WIDTH) {
+        return col;
+      }
+    }
+    return -1;
+  }
+
+  /**
+   * 获取命中单元格自身文本。
+   */
+  private hitCellValue(row: number, side: DATA_POS, col: number): string {
+    if (side === DATA_POS.LEFT && col >= 0) {
+      return this.dataAdapter.displayText(this.dataAdapter.leftItem(row, col).text);
+    }
+    if (side === DATA_POS.RIGHT && col >= 0) {
+      return this.dataAdapter.displayText(this.dataAdapter.rightItem(row, col).text);
+    }
+    return this.dataAdapter.displayText(this.dataAdapter.centerItem(row).text);
+  }
+
+  /**
+   * 同时触发旧点击回调和新增细粒度点击回调。
+   */
+  private notifyCellClick(row: number, side: DATA_POS, col: number): void {
+    if (!this.dataAdapter.hasRow(row)) {
+      return;
+    }
+    let strike = this.dataAdapter.displayText(this.dataAdapter.centerItem(row).text);
+    let cellValue = this.hitCellValue(row, side, col);
+    this.gestureMonitor.onClick(row, side, strike);
+    if (side === DATA_POS.CENTER || col >= 0) {
+      this.onCellClick(row, side, col, cellValue);
+    }
+  }
+
+  /**
+   * 触发旧版长按回调；Canvas 长按只做旧接口透传，不触发点击跳转。
+   */
+  private notifyCellLongPress(row: number, side: DATA_POS): void {
+    if (!this.dataAdapter.hasRow(row)) {
+      return;
+    }
+    let strike = this.dataAdapter.displayText(this.dataAdapter.centerItem(row).text);
+    this.gestureMonitor.onLongPress(row, side, strike);
+  }
+
+  /**
+   * 处理单元格点击命中，并兼容旧 GestureMonitor 点击透传。
+   */
+  private handleTap(x: number, y: number): void {
+    if (this.handleHeaderTap(x, y)) {
+      return;
+    }
+    if (y < this.headerHeight()) {
+      let centerStart = this.centerStartX();
+      let rightStart = this.rightStartX();
+      if (x >= centerStart && x < rightStart) {
+        this.toggleStrikeSort();
+      }
+      return;
+    }
+    let row = Math.floor((y - this.headerHeight() + this.verticalOffset) / ITEM_HEIGHT);
+    if (row < 0 || row >= this.rows() || !this.dataAdapter.hasRow(row)) {
+      return;
+    }
+    let centerStart = this.centerStartX();
+    let rightStart = this.rightStartX();
+    if (this.isLeftVisible() && x >= 0 && x < centerStart) {
+      this.notifyCellClick(row, DATA_POS.LEFT, this.hitLeftCol(x));
+      return;
+    }
+    if (x >= centerStart && x < rightStart) {
+      this.notifyCellClick(row, DATA_POS.CENTER, -1);
+      return;
+    }
+    if (this.isRightVisible() && x >= rightStart && x < this.viewportWidth) {
+      this.notifyCellClick(row, DATA_POS.RIGHT, this.hitRightCol(x));
+    }
+  }
+
+  /**
+   * 处理单元格长按命中，给旧 GestureMonitor 长按接口透传行、侧别和行权价。
+   */
+  private handleLongPress(x: number, y: number): void {
+    if (y < this.headerHeight()) {
+      return;
+    }
+    let row = Math.floor((y - this.headerHeight() + this.verticalOffset) / ITEM_HEIGHT);
+    if (row < 0 || row >= this.rows() || !this.dataAdapter.hasRow(row)) {
+      return;
+    }
+    let centerStart = this.centerStartX();
+    let rightStart = this.rightStartX();
+    if (this.isLeftVisible() && x >= 0 && x < centerStart) {
+      this.notifyCellLongPress(row, DATA_POS.LEFT);
+      return;
+    }
+    if (x >= centerStart && x < rightStart) {
+      this.notifyCellLongPress(row, DATA_POS.CENTER);
+      return;
+    }
+    if (this.isRightVisible() && x >= rightStart && x < this.viewportWidth) {
+      this.notifyCellLongPress(row, DATA_POS.RIGHT);
+    }
+  }
+
+  /**
+   * 切换行权价升/降序：组件只通知业务侧目标方向，排序和状态回传由业务统一维护。
+   */
+  private toggleStrikeSort(): void {
+    this.onStrikeSortToggle(!this.strikeAscending);
+  }
+
+  /**
+   * 停止惯性滑动。
+   */
+  private stopInertia(): void {
+    if (this.inertiaTimerId >= 0) {
+      clearInterval(this.inertiaTimerId);
+      this.inertiaTimerId = -1;
+    }
+    this.inertiaVelocity = 0;
+  }
+
+  /**
+   * 结束滚动状态，并合并滚动期间被暂停的数据刷新。
+   */
+  private finishScrolling(): void {
+    this.isPanning = false;
+    this.gestureMonitor.onScrollStop();
+    if (this.pendingDataRedraw) {
+      this.pendingDataRedraw = false;
+      this.clampOffsets();
+      this.requestRedraw();
+    }
+  }
+
+  /**
+   * 启动惯性滑动。
+   */
+  private startInertia(): void {
+    let velocity = this.panAxis === CanvasPanAxis.Horizontal ? this.panVelocityX : this.panVelocityY;
+    if (Math.abs(velocity) < CANVAS_INERTIA_MIN_VELOCITY) {
+      this.finishScrolling();
+      return;
+    }
+    this.stopInertia();
+    this.inertiaVelocity = Math.max(-CANVAS_INERTIA_MAX_VELOCITY, Math.min(velocity, CANVAS_INERTIA_MAX_VELOCITY));
+    this.inertiaTimerId = setInterval(() => {
