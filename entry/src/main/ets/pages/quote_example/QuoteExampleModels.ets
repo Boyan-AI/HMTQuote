@@ -37,3 +37,25 @@ export class ContractTabItem {
   code: string = '';
   badge: string = '';
   active: boolean = false;
+
+  constructor(code: string, badge: string, active: boolean) {
+    this.code = code;
+    this.badge = badge;
+    this.active = active;
+  }
+}
+
+/**
+ * 底部主导航项。
+ */
+export class BottomNavItem {
+  icon: string = '';
+  label: string = '';
+  active: boolean = false;
+
+  constructor(icon: string, label: string, active: boolean) {
+    this.icon = icon;
+    this.label = label;
+    this.active = active;
+  }
+}
