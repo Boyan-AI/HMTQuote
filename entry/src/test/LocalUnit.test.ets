@@ -1,4 +1,5 @@
 import { describe, beforeAll, beforeEach, afterEach, afterAll, it, expect } from '@ohos/hypium';
+import { TCanvasScrollRelay } from 'common_sideslipview';
 
 export default function localUnitTest() {
   describe('localUnitTest', () => {
@@ -28,6 +29,18 @@ export default function localUnitTest() {
       // Defines a variety of assertion methods, which are used to declare expected boolean conditions.
       expect(a).assertContain(b);
       expect(a).assertEqual(a);
+    });
+    it('quoteTableExampleRelaysCanvasEdgeOffsetToParentScroll', 0, () => {
+      let parentScrollY = 0;
+      let relayToParent = (offset: number): void => {
+        parentScrollY += offset;
+      };
+
+      relayToParent(TCanvasScrollRelay.applyOffset(8, -20, 100).remainOffset);
+      expect(parentScrollY).assertEqual(-12);
+
+      relayToParent(TCanvasScrollRelay.applyOffset(92, 24, 100).remainOffset);
+      expect(parentScrollY).assertEqual(4);
     });
   });
 }
