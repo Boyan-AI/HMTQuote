@@ -648,3 +648,171 @@ struct PerfTest {
         .width('100%')
 
         Flex({ wrap: FlexWrap.Wrap }) {
+          Button(`${this.frequencyHz}Hz`)
+            .fontSize(12)
+            .height(30)
+            .backgroundColor('#ffeef2ff')
+            .fontColor('#ff1d4ed8')
+            .borderRadius(6)
+            .margin({ right: 6, top: 6 })
+            .onClick(() => {
+              this.cycleFrequency();
+            })
+          Button(`行情变化 ${distributionName(this.distribution)}`)
+            .fontSize(12)
+            .height(30)
+            .backgroundColor('#ffeef2ff')
+            .fontColor('#ff1d4ed8')
+            .borderRadius(6)
+            .margin({ right: 6, top: 6 })
+            .onClick(() => {
+              this.cycleDistribution();
+            })
+          Button(this.useScheduler ? 'B调度合并' : 'A逐个写入')
+            .fontSize(12)
+            .height(30)
+            .backgroundColor('#ffeef2ff')
+            .fontColor('#ff1d4ed8')
+            .borderRadius(6)
+            .margin({ right: 6, top: 6 })
+            .onClick(() => {
+              this.toggleSchedulerMode();
+            })
+          Button(`flush ${this.schedulerFlushIntervalMs}ms`)
+            .fontSize(12)
+            .height(30)
+            .backgroundColor('#ffeef2ff')
+            .fontColor('#ff1d4ed8')
+            .borderRadius(6)
+            .margin({ right: 6, top: 6 })
+            .onClick(() => {
+              this.cycleSchedulerFlushInterval();
+            })
+        }
+        .width('100%')
+
+        Row() {
+          Text('策略')
+            .fontSize(12)
+            .fontWeight(FontWeight.Bold)
+            .fontColor('#ff374151')
+          Text(this.currentStrategyText())
+            .fontSize(11)
+            .fontColor('#ff6b7280')
+            .maxLines(1)
+            .textOverflow({ overflow: TextOverflow.Ellipsis })
+            .layoutWeight(1)
+            .margin({ left: 8 })
+        }
+        .width('100%')
+        .margin({ top: 8 })
+
+        Flex({ wrap: FlexWrap.Wrap }) {
+          Button(`只刷可见 ${this.visibleOnlyRefresh ? '开' : '关'}`)
+            .fontSize(12)
+            .height(30)
+            .backgroundColor(this.visibleOnlyRefresh ? '#ffdcfce7' : '#fff3f4f6')
+            .fontColor(this.visibleOnlyRefresh ? '#ff15803d' : '#ff4b5563')
+            .borderRadius(6)
+            .margin({ right: 6, top: 6 })
+            .onClick(() => {
+              this.toggleVisibleOnlyRefresh();
+            })
+          Button(`滑动刷新 ${this.continueWhileScrolling ? '开' : '关'}`)
+            .fontSize(12)
+            .height(30)
+            .backgroundColor(this.continueWhileScrolling ? '#fffef3c7' : '#ffdcfce7')
+            .fontColor(this.continueWhileScrolling ? '#ff92400e' : '#ff15803d')
+            .borderRadius(6)
+            .margin({ right: 6, top: 6 })
+            .onClick(() => {
+              this.toggleContinueWhileScrolling();
+            })
+          Button(`强制整表刷新 ${this.forceFullRefresh ? '开' : '关'}`)
+            .fontSize(12)
+            .height(30)
+            .backgroundColor(this.forceFullRefresh ? '#ffffe4e6' : '#fff3f4f6')
+            .fontColor(this.forceFullRefresh ? '#ffbe123c' : '#ff4b5563')
+            .borderRadius(6)
+            .margin({ right: 6, top: 6 })
+            .onClick(() => {
+              this.toggleForceFullRefresh();
+            })
+          Button(`LIVE探针 ${this.visualProbe ? '开' : '关'}`)
+            .fontSize(12)
+            .height(30)
+            .backgroundColor(this.visualProbe ? '#ffffe4e6' : '#fff3f4f6')
+            .fontColor(this.visualProbe ? '#ffbe123c' : '#ff4b5563')
+            .borderRadius(6)
+            .margin({ right: 6, top: 6 })
+            .onClick(() => {
+              this.toggleVisualProbe();
+            })
+          Button(`分区配色 ${this.partitionColorIndex + 1}`)
+            .fontSize(12)
+            .height(30)
+            .backgroundColor('#fff3f4f6')
+            .fontColor('#ff4b5563')
+            .borderRadius(6)
+            .margin({ right: 6, top: 6 })
+            .onClick(() => {
+              this.cyclePartitionColors();
+            })
+        }
+        .width('100%')
+
+        Row() {
+          Text(`LIVE探针: ${this.liveProbeText}`)
+            .fontSize(11)
+            .fontColor('#ff2563eb')
+            .maxLines(1)
+            .textOverflow({ overflow: TextOverflow.Ellipsis })
+            .layoutWeight(1)
+          Text('D Canvas 单路径')
+            .fontSize(10)
+            .fontColor('#ff9ca3af')
+            .margin({ left: 8 })
+        }
+        .width('100%')
+        .margin({ top: 8 })
+      }
+      .width('100%')
+      .padding({ left: 12, right: 12, top: 10, bottom: 10 })
+      .backgroundColor('#fff9fafb')
+      .borderWidth({ top: 1, bottom: 1 })
+      .borderColor('#ffe5e7eb')
+
+      CanvasQuoteTable({
+        data: this.canvasData,
+        partitionColors: this.partitionColors,
+        latestPrice: this.latestPrice,
+        revision: this.canvasRevision,
+        onDrawCost: (costMs: number) => {
+          this.stats.recordCanvasDraw(costMs);
+        },
+        onCellTap: (cell: CanvasQuoteHitCell) => {
+          this.liveProbeText = `选中 row=${cell.row} side=${cell.side} col=${cell.col} value=${cell.value}`;
+          this.getUIContext().getRouter().pushUrl({
+            url: 'pages/Info',
+            params: {
+              row: cell.row,
+              side: cell.side,
+              col: cell.col,
+              value: cell.value
+            }
+          });
+        },
+        onScrollStateChange: (scrolling: boolean) => {
+          this.updateCanvasScrollState(scrolling);
+        },
+        onVisibleRangeChange: (startRow: number, endRow: number) => {
+          this.updateCanvasVisibleRange(startRow, endRow);
+        }
+      })
+        .layoutWeight(1)
+        .width('100%')
+    }
+    .width('100%')
+    .height('100%')
+  }
+}
