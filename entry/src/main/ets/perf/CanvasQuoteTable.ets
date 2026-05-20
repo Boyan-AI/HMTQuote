@@ -498,3 +498,206 @@ export struct CanvasQuoteTable {
         this.horizontalOffset += this.inertiaVelocity * INERTIA_FRAME_MS;
       } else {
         this.verticalOffset += this.inertiaVelocity * INERTIA_FRAME_MS;
+      }
+      this.clampOffsets();
+      this.notifyVisibleRange();
+      this.requestRedraw();
+      if (beforeX === this.horizontalOffset && beforeY === this.verticalOffset) {
+        this.stopInertia();
+        this.onScrollStateChange(false);
+        return;
+      }
+      this.inertiaVelocity *= INERTIA_DECAY;
+    }, INERTIA_FRAME_MS);
+  }
+
+  private updatePanVelocity(event: GestureEvent) {
+    let now = nowMs();
+    let dt = Math.max(now - this.lastPanAt, 1);
+    let offsetX = Number(event.offsetX);
+    let offsetY = Number(event.offsetY);
+    this.panVelocityX = this.horizontalGestureSign() * (offsetX - this.lastPanOffsetX) / dt;
+    this.panVelocityY = -(offsetY - this.lastPanOffsetY) / dt;
+    this.lastPanOffsetX = offsetX;
+    this.lastPanOffsetY = offsetY;
+    this.lastPanAt = now;
+  }
+
+  private horizontalGestureSign(): number {
+    return this.panStartedOnLeft ? 1 : -1;
+  }
+
+  private handleTap(x: number, y: number) {
+    if (this.handleHeaderTap(x, y)) {
+      return;
+    }
+    let hit = this.hitTest(x, y);
+    if (hit.row < 0) {
+      return;
+    }
+    this.onCellTap(hit);
+  }
+
+  private handleHeaderTap(x: number, y: number): boolean {
+    if (y > HEADER_HEIGHT) {
+      return false;
+    }
+    if (this.isPointInLeftHeaderAction(x, y)) {
+      if (this.leftExpanded && !this.rightExpanded) {
+        this.leftExpanded = true;
+        this.rightExpanded = true;
+      } else {
+        this.leftExpanded = true;
+        this.rightExpanded = false;
+      }
+      this.animateLayoutToTarget();
+      return true;
+    }
+    if (this.isPointInRightHeaderAction(x, y)) {
+      if (!this.leftExpanded && this.rightExpanded) {
+        this.leftExpanded = true;
+        this.rightExpanded = true;
+      } else {
+        this.leftExpanded = false;
+        this.rightExpanded = true;
+      }
+      this.animateLayoutToTarget();
+      return true;
+    }
+    return true;
+  }
+
+  private isPointInLeftHeaderAction(x: number, y: number): boolean {
+    return y >= 0 && y <= HEADER_HEIGHT / 2 &&
+      x >= this.leftActionX() && x <= this.leftActionX() + this.leftActionWidth();
+  }
+
+  private isPointInRightHeaderAction(x: number, y: number): boolean {
+    return y >= 0 && y <= HEADER_HEIGHT / 2 &&
+      x >= this.rightActionX() && x <= this.rightActionX() + this.rightActionWidth();
+  }
+
+  private hitTest(x: number, y: number): CanvasQuoteHitCell {
+    let hit = new CanvasQuoteHitCell();
+    if (y < HEADER_HEIGHT) {
+      return hit;
+    }
+    let tableY = y - HEADER_HEIGHT + this.verticalOffset;
+    let row = Math.floor(tableY / ROW_HEIGHT);
+    if (row < 0 || row >= this.data.rows) {
+      return hit;
+    }
+    let centerStart = this.centerStartX();
+    let rightStart = this.leftRightStartX();
+    hit.row = row;
+    if (this.leftExpanded && x >= 0 && x < centerStart) {
+      hit.side = DATA_POS.LEFT;
+      hit.col = Math.floor((centerStart - x + this.horizontalOffset) / CELL_WIDTH);
+      if (hit.col < 0 || hit.col >= this.data.colsPerSide) {
+        hit.row = -1;
+        return hit;
+      }
+      hit.value = this.data.getValue(hit.side, hit.row, hit.col);
+      return hit;
+    }
+    if (x >= centerStart && x < rightStart) {
+      hit.side = DATA_POS.CENTER;
+      hit.col = 0;
+      hit.value = `${hit.row}`;
+      return hit;
+    }
+    if (this.rightExpanded && x >= rightStart && x < this.viewportWidth) {
+      hit.side = DATA_POS.RIGHT;
+      hit.col = Math.floor((x - rightStart + this.horizontalOffset) / CELL_WIDTH);
+      if (hit.col < 0 || hit.col >= this.data.colsPerSide) {
+        hit.row = -1;
+        return hit;
+      }
+      hit.value = this.data.getValue(hit.side, hit.row, hit.col);
+      return hit;
+    }
+    hit.row = -1;
+    return hit;
+  }
+
+  build() {
+    Canvas(this.context)
+      .width('100%')
+      .height('100%')
+      .backgroundColor('#ffffffff')
+      .onReady(() => {
+        this.requestRedraw();
+      })
+      .onClick((event: ClickEvent) => {
+        this.handleTap(event.x, event.y);
+      })
+      .onTouch((event: TouchEvent) => {
+        if (event.type === TouchType.Down && event.touches.length > 0) {
+          this.panStartX = event.touches[0].x;
+        }
+      })
+      .onAreaChange((_oldArea: Area, newArea: Area) => {
+        if (Number(newArea.width) > 0) {
+          this.viewportWidth = Number(newArea.width);
+        }
+        if (Number(newArea.height) > 0) {
+          this.viewportHeight = Number(newArea.height);
+        }
+        if (this.centerX < 0) {
+          this.centerX = this.targetCenterStartX();
+        } else {
+          this.centerX = this.targetCenterStartX();
+        }
+        this.clampOffsets();
+        this.notifyVisibleRange();
+        this.requestRedraw();
+      })
+      .gesture(
+        PanGesture({ direction: PanDirection.All })
+          .onActionStart(() => {
+            this.stopInertia();
+            this.onScrollStateChange(true);
+            this.panStartHorizontalOffset = this.horizontalOffset;
+            this.panStartVerticalOffset = this.verticalOffset;
+            this.panStartedOnLeft = this.panStartX < this.centerStartX();
+            this.panAxis = CanvasPanAxis.None;
+            this.lastPanOffsetX = 0;
+            this.lastPanOffsetY = 0;
+            this.lastPanAt = nowMs();
+            this.panVelocityX = 0;
+            this.panVelocityY = 0;
+          })
+          .onActionUpdate((event: GestureEvent) => {
+            this.updatePanVelocity(event);
+            if (this.panAxis === CanvasPanAxis.None) {
+              let absX = Math.abs(event.offsetX);
+              let absY = Math.abs(event.offsetY);
+              if (Math.max(absX, absY) < PAN_AXIS_LOCK_THRESHOLD) {
+                return;
+              }
+              this.panAxis = absX >= absY ? CanvasPanAxis.Horizontal : CanvasPanAxis.Vertical;
+            }
+            if (this.panAxis === CanvasPanAxis.Horizontal) {
+              this.horizontalOffset = this.panStartHorizontalOffset + this.horizontalGestureSign() * event.offsetX;
+            } else {
+              this.verticalOffset = this.panStartVerticalOffset - event.offsetY;
+            }
+            this.clampOffsets();
+            this.notifyVisibleRange();
+            this.requestRedraw();
+          })
+          .onActionEnd(() => {
+            if (this.panAxis === CanvasPanAxis.None) {
+              this.onScrollStateChange(false);
+              return;
+            }
+            this.startInertia();
+          })
+          .onActionCancel(() => {
+            this.stopInertia();
+            this.panAxis = CanvasPanAxis.None;
+            this.onScrollStateChange(false);
+          })
+      )
+  }
+}
