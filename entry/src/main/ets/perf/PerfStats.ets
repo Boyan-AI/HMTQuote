@@ -163,3 +163,234 @@ export class PerfStats {
     this.counters.lastFlushCells = cellCount;
     this.counters.maxFlushCells = Math.max(this.counters.maxFlushCells, cellCount);
     this.counters.totalFlushCostMs += costMs;
+    this.counters.lastFlushCostMs = costMs;
+    this.counters.maxFlushCostMs = Math.max(this.counters.maxFlushCostMs, costMs);
+  }
+
+  recordCanvasDraw(costMs: number) {
+    this.counters.canvasDrawCount++;
+    this.counters.totalCanvasDrawCostMs += costMs;
+    this.counters.lastCanvasDrawCostMs = costMs;
+    this.counters.maxCanvasDrawCostMs = Math.max(this.counters.maxCanvasDrawCostMs, costMs);
+  }
+
+  recordScrollCallback() {
+    this.counters.scrollCallbacks++;
+  }
+
+  recordScrollerSync(count: number) {
+    this.counters.scrollerSyncCount += count;
+  }
+
+  snapshot(): PerfSnapshot {
+    let now = nowMs();
+    if (this.cachedSnapshot !== null && now - this.cachedAt < SNAPSHOT_CACHE_MS) {
+      return this.cachedSnapshot;
+    }
+    let elapsedMs = Math.max(now - this.startedAt, 1);
+    let elapsedSeconds = elapsedMs / 1000;
+    let snapshot = new PerfSnapshot();
+    snapshot.elapsedMs = Math.round(elapsedMs);
+    snapshot.quoteUpdatesPerSecond = Math.round(this.counters.quoteUpdates / elapsedSeconds);
+    snapshot.uiAppliedPerSecond = Math.round(this.counters.uiAppliedUpdates / elapsedSeconds);
+    snapshot.uiPaintedPerSecond = Math.round(this.counters.uiPaintedCells / elapsedSeconds);
+    snapshot.flushPerSecond = Math.round(this.counters.flushCount / elapsedSeconds);
+    snapshot.flushedCellsPerSecond = Math.round(this.counters.flushedCells / elapsedSeconds);
+    snapshot.maxFlushCells = this.counters.maxFlushCells;
+    snapshot.lastFlushCells = this.counters.lastFlushCells;
+    snapshot.avgFlushCostMs = this.counters.flushCount > 0 ? this.counters.totalFlushCostMs / this.counters.flushCount : 0;
+    snapshot.maxFlushCostMs = this.counters.maxFlushCostMs;
+    snapshot.lastFlushCostMs = this.counters.lastFlushCostMs;
+    snapshot.canvasDrawPerSecond = Math.round(this.counters.canvasDrawCount / elapsedSeconds);
+    snapshot.avgCanvasDrawCostMs =
+      this.counters.canvasDrawCount > 0 ? this.counters.totalCanvasDrawCostMs / this.counters.canvasDrawCount : 0;
+    snapshot.maxCanvasDrawCostMs = this.counters.maxCanvasDrawCostMs;
+    snapshot.lastCanvasDrawCostMs = this.counters.lastCanvasDrawCostMs;
+    snapshot.measuredFrequencyHz = Math.round(this.counters.feedTicks / elapsedSeconds);
+    snapshot.targetFrequencyHz = this.scenario.frequencyHz;
+    snapshot.frequencyDriftPercent = this.calcFrequencyDrift(snapshot.measuredFrequencyHz, this.scenario.frequencyHz);
+    snapshot.quoteUpdates = this.counters.quoteUpdates;
+    snapshot.uiAppliedUpdates = this.counters.uiAppliedUpdates;
+    snapshot.uiPaintedCells = this.counters.uiPaintedCells;
+    snapshot.scrollCallbacks = this.counters.scrollCallbacks;
+    snapshot.scrollerSyncCount = this.counters.scrollerSyncCount;
+    snapshot.frameCount = this.counters.frameCount;
+    let percentiles = this.calcPercentiles();
+    snapshot.frameP50Ms = percentiles[0];
+    snapshot.frameP95Ms = percentiles[1];
+    snapshot.frameP99Ms = percentiles[2];
+    snapshot.maxFrameMs = percentiles[3];
+    this.markHealth(snapshot);
+    this.logThresholdAlert(snapshot);
+    this.cachedSnapshot = snapshot;
+    this.cachedAt = now;
+    return snapshot;
+  }
+
+  summaryText(): string {
+    let s = this.snapshot();
+    let reason = s.healthReason.length > 0 ? `(${s.healthReason})` : '';
+    return `状态 ${s.health}${reason} | 行情 ${s.quoteUpdatesPerSecond}/秒 | UI写入 ${s.uiAppliedPerSecond}/秒 | UI绘制 ${s.uiPaintedPerSecond}/秒 | flush cost max ${s.maxFlushCostMs.toFixed(1)}ms | canvas ${s.canvasDrawPerSecond}/秒 max ${s.maxCanvasDrawCostMs.toFixed(1)}ms | P95 ${s.frameP95Ms.toFixed(1)}ms / P99 ${s.frameP99Ms.toFixed(1)}ms / max ${s.maxFrameMs.toFixed(1)}ms`;
+  }
+
+  exportJsonLine(): string {
+    let s = this.snapshot();
+    return JSON.stringify({
+      scenarioId: this.scenario.scenarioId,
+      variantId: this.scenario.variantId,
+      timestamp: Date.now(),
+      elapsedMs: s.elapsedMs,
+      quoteUpdatesPerSecond: s.quoteUpdatesPerSecond,
+      uiAppliedPerSecond: s.uiAppliedPerSecond,
+      uiPaintedPerSecond: s.uiPaintedPerSecond,
+      flushPerSecond: s.flushPerSecond,
+      flushedCellsPerSecond: s.flushedCellsPerSecond,
+      maxFlushCells: s.maxFlushCells,
+      lastFlushCells: s.lastFlushCells,
+      avgFlushCostMs: s.avgFlushCostMs,
+      maxFlushCostMs: s.maxFlushCostMs,
+      lastFlushCostMs: s.lastFlushCostMs,
+      canvasDrawPerSecond: s.canvasDrawPerSecond,
+      avgCanvasDrawCostMs: s.avgCanvasDrawCostMs,
+      maxCanvasDrawCostMs: s.maxCanvasDrawCostMs,
+      lastCanvasDrawCostMs: s.lastCanvasDrawCostMs,
+      measuredFrequencyHz: s.measuredFrequencyHz,
+      targetFrequencyHz: s.targetFrequencyHz,
+      frequencyDriftPercent: s.frequencyDriftPercent,
+      quoteUpdates: s.quoteUpdates,
+      uiAppliedUpdates: s.uiAppliedUpdates,
+      uiPaintedCells: s.uiPaintedCells,
+      scrollCallbacks: s.scrollCallbacks,
+      scrollerSyncCount: s.scrollerSyncCount,
+      frameCount: s.frameCount,
+      frameP50Ms: s.frameP50Ms,
+      frameP95Ms: s.frameP95Ms,
+      frameP99Ms: s.frameP99Ms,
+      maxFrameMs: s.maxFrameMs,
+      health: s.health,
+      healthReason: s.healthReason
+    });
+  }
+
+  // 通过 hilog.info 输出 JSONL，便于 hdc shell hilog -T PerfStats 抓取
+  exportToHilog() {
+    let line = this.exportJsonLine();
+    hilog.info(PERF_DOMAIN, PERF_TAG, '%{public}s', line);
+  }
+
+  private markHealth(snapshot: PerfSnapshot) {
+    if (snapshot.elapsedMs < 1000) {
+      snapshot.health = '采样中';
+      snapshot.healthReason = '数据不足1秒';
+      return;
+    }
+
+    // 用户主动关闭"滑动中刷新"且当前正在滑动，UI 写入为 0 是预期行为，不算异常
+    let intentionalNoUi = this.context.scrolling && !this.context.continueWhileScrolling;
+
+    if (!intentionalNoUi && this.context.feedRunning && snapshot.quoteUpdatesPerSecond > 0 &&
+      snapshot.uiAppliedPerSecond <= 0) {
+      snapshot.health = '异常';
+      snapshot.healthReason = '行情有输入但UI无写入';
+      return;
+    }
+    if (snapshot.frameP95Ms >= 50) {
+      snapshot.health = '异常';
+      snapshot.healthReason = `P95帧间隔${snapshot.frameP95Ms.toFixed(1)}ms>=50ms`;
+      return;
+    }
+    if (this.context.feedRunning && snapshot.frequencyDriftPercent >= 50) {
+      snapshot.health = '异常';
+      snapshot.healthReason = `实测频率偏差${snapshot.frequencyDriftPercent}%>=50%`;
+      return;
+    }
+    if (snapshot.frameP95Ms >= 33) {
+      snapshot.health = '警告';
+      snapshot.healthReason = `P95帧间隔${snapshot.frameP95Ms.toFixed(1)}ms>=33ms`;
+      return;
+    }
+    if (this.context.feedRunning && snapshot.frequencyDriftPercent >= 20) {
+      snapshot.health = '警告';
+      snapshot.healthReason = `实测频率偏差${snapshot.frequencyDriftPercent}%>=20%`;
+      return;
+    }
+    snapshot.health = '正常';
+    snapshot.healthReason = '';
+  }
+
+  private logThresholdAlert(snapshot: PerfSnapshot) {
+    if (snapshot.health !== '警告' && snapshot.health !== '异常') {
+      this.lastHealth = snapshot.health;
+      return;
+    }
+
+    let now = Date.now();
+    let healthChanged = snapshot.health !== this.lastHealth;
+    let shouldThrottleLog = now - this.lastWarnAt >= 5000;
+    if (!healthChanged && !shouldThrottleLog) {
+      return;
+    }
+
+    this.lastHealth = snapshot.health;
+    this.lastWarnAt = now;
+    let message = this.buildAlertMessage(snapshot);
+    if (snapshot.health === '异常') {
+      hilog.error(PERF_DOMAIN, PERF_TAG, '%{public}s', message);
+    } else {
+      hilog.warn(PERF_DOMAIN, PERF_TAG, '%{public}s', message);
+    }
+  }
+
+  private buildAlertMessage(snapshot: PerfSnapshot): string {
+    return JSON.stringify({
+      level: snapshot.health,
+      reason: snapshot.healthReason,
+      scenarioId: this.scenario.scenarioId,
+      variantId: this.scenario.variantId,
+      elapsedMs: snapshot.elapsedMs,
+      quoteUpdatesPerSecond: snapshot.quoteUpdatesPerSecond,
+      uiAppliedPerSecond: snapshot.uiAppliedPerSecond,
+      uiPaintedPerSecond: snapshot.uiPaintedPerSecond,
+      flushPerSecond: snapshot.flushPerSecond,
+      flushedCellsPerSecond: snapshot.flushedCellsPerSecond,
+      maxFlushCells: snapshot.maxFlushCells,
+      lastFlushCells: snapshot.lastFlushCells,
+      avgFlushCostMs: snapshot.avgFlushCostMs,
+      maxFlushCostMs: snapshot.maxFlushCostMs,
+      lastFlushCostMs: snapshot.lastFlushCostMs,
+      canvasDrawPerSecond: snapshot.canvasDrawPerSecond,
+      avgCanvasDrawCostMs: snapshot.avgCanvasDrawCostMs,
+      maxCanvasDrawCostMs: snapshot.maxCanvasDrawCostMs,
+      lastCanvasDrawCostMs: snapshot.lastCanvasDrawCostMs,
+      measuredFrequencyHz: snapshot.measuredFrequencyHz,
+      targetFrequencyHz: snapshot.targetFrequencyHz,
+      frequencyDriftPercent: snapshot.frequencyDriftPercent,
+      frameP95Ms: snapshot.frameP95Ms,
+      frameP99Ms: snapshot.frameP99Ms,
+      maxFrameMs: snapshot.maxFrameMs,
+      scrollCallbacks: snapshot.scrollCallbacks,
+      scrollerSyncCount: snapshot.scrollerSyncCount
+    });
+  }
+
+  private calcFrequencyDrift(measured: number, target: number): number {
+    if (target <= 0) {
+      return 0;
+    }
+    return Math.round(Math.abs(measured - target) * 100 / target);
+  }
+
+  // 同时计算 P50/P95/P99 和 max，避免多次排序
+  private calcPercentiles(): number[] {
+    if (this.frameDurations.length <= 0) {
+      return [0, 0, 0, 0];
+    }
+    let sorted = this.frameDurations.slice().sort((a: number, b: number) => a - b);
+    let len = sorted.length;
+    let p50 = sorted[Math.min(len - 1, Math.floor(len * 50 / 100))];
+    let p95 = sorted[Math.min(len - 1, Math.floor(len * 95 / 100))];
+    let p99 = sorted[Math.min(len - 1, Math.floor(len * 99 / 100))];
+    let max = sorted[len - 1];
+    return [p50, p95, p99, max];
+  }
+}
