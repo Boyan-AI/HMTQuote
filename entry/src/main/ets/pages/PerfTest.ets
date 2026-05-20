@@ -498,3 +498,153 @@ struct PerfTest {
 
   private healthColor(): ResourceColor {
     let snapshot = this.stats.snapshot();
+    if (snapshot.health === '异常') {
+      return '#ffb00020';
+    }
+    if (snapshot.health === '警告') {
+      return '#ff9a6700';
+    }
+    return '#ff555555';
+  }
+
+  private currentConfigText(): string {
+    return `100行 x 每侧20列 | ${this.frequencyHz}Hz | 行情变化${distributionName(this.distribution)} | ${this.currentVariantId()} | flush ${this.schedulerFlushIntervalMs}ms`;
+  }
+
+  private currentStrategyText(): string {
+    return `只刷可见 ${this.visibleOnlyRefresh ? '开' : '关'} | 滑动刷新 ${this.continueWhileScrolling ? '开' : '关'} | 强制整表刷新 ${this.forceFullRefresh ? '开' : '关'} | LIVE探针 ${this.visualProbe ? '开' : '关'}`;
+  }
+
+  build() {
+    Column() {
+      Column() {
+        Row() {
+          Column() {
+            Text('行情表压测')
+              .fontSize(18)
+              .fontWeight(FontWeight.Bold)
+              .fontColor('#ff111827')
+            Text(this.currentConfigText())
+              .fontSize(11)
+              .fontColor('#ff6b7280')
+              .maxLines(1)
+              .textOverflow({ overflow: TextOverflow.Ellipsis })
+              .margin({ top: 3 })
+          }
+          .layoutWeight(1)
+          .alignItems(HorizontalAlign.Start)
+
+          Button(this.isFeedActive() ? '停止' : '开始')
+            .fontSize(13)
+            .height(34)
+            .backgroundColor(this.isFeedActive() ? '#ffef4444' : '#ff2563eb')
+            .fontColor('#ffffffff')
+            .borderRadius(6)
+            .margin({ left: 8 })
+            .onClick(() => {
+              if (this.isFeedActive()) {
+                this.stopFeed();
+              } else {
+                this.startFeed();
+              }
+            })
+          Button('导出')
+            .fontSize(13)
+            .height(34)
+            .backgroundColor('#ffe5e7eb')
+            .fontColor('#ff111827')
+            .borderRadius(6)
+            .margin({ left: 6 })
+            .onClick(() => {
+              this.exportSnapshot();
+            })
+        }
+        .width('100%')
+
+        Row() {
+          Text(this.summary)
+            .fontSize(11)
+            .fontColor(this.healthColor())
+            .maxLines(2)
+            .textOverflow({ overflow: TextOverflow.Ellipsis })
+            .layoutWeight(1)
+          Text(this.isFeedActive() ? 'RUNNING' : 'IDLE')
+            .fontSize(11)
+            .fontWeight(FontWeight.Bold)
+            .fontColor(this.isFeedActive() ? '#ff15803d' : '#ff6b7280')
+            .backgroundColor(this.isFeedActive() ? '#ffdcfce7' : '#fff3f4f6')
+            .borderRadius(6)
+            .padding({ left: 8, right: 8, top: 4, bottom: 4 })
+            .margin({ left: 8 })
+        }
+        .width('100%')
+        .margin({ top: 8 })
+      }
+      .width('100%')
+      .padding({ left: 12, right: 12, top: 10, bottom: 10 })
+      .backgroundColor('#ffffffff')
+
+      Column() {
+        Row() {
+          Text('场景')
+            .fontSize(12)
+            .fontWeight(FontWeight.Bold)
+            .fontColor('#ff374151')
+          Blank()
+          Button('重置')
+            .fontSize(11)
+            .height(28)
+            .backgroundColor('#fff3f4f6')
+            .fontColor('#ff374151')
+            .borderRadius(6)
+            .onClick(() => {
+              this.resetStats();
+            })
+          Button('诊断')
+            .fontSize(11)
+            .height(28)
+            .backgroundColor('#fff3f4f6')
+            .fontColor('#ff374151')
+            .borderRadius(6)
+            .margin({ left: 6 })
+            .onClick(() => {
+              this.diagnosticUpdate();
+            })
+        }
+        .width('100%')
+
+        Flex({ wrap: FlexWrap.Wrap }) {
+          Button('业务默认')
+            .fontSize(12)
+            .height(30)
+            .backgroundColor('#ff2563eb')
+            .fontColor('#ffffffff')
+            .borderRadius(6)
+            .margin({ right: 6, top: 6 })
+            .onClick(() => {
+              this.applyBusinessDefaultPreset();
+            })
+          Button('偏高压力')
+            .fontSize(12)
+            .height(30)
+            .backgroundColor('#fffef3c7')
+            .fontColor('#ff92400e')
+            .borderRadius(6)
+            .margin({ right: 6, top: 6 })
+            .onClick(() => {
+              this.applyHighPressurePreset();
+            })
+          Button('极限降级')
+            .fontSize(12)
+            .height(30)
+            .backgroundColor('#ffffe4e6')
+            .fontColor('#ffbe123c')
+            .borderRadius(6)
+            .margin({ right: 6, top: 6 })
+            .onClick(() => {
+              this.applyExtremeDegradePreset();
+            })
+        }
+        .width('100%')
+
+        Flex({ wrap: FlexWrap.Wrap }) {
