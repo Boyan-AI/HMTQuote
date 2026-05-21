@@ -1525,3 +1525,503 @@
 ### 场景 1：10Hz，1/4 表
 
 原始结果：
+
+```json
+{
+  "scenarioId": "rows100_cols20_10hz_quartertable",
+  "variantId": "D_canvas",
+  "timestamp": 1779292363055,
+  "elapsedMs": 52987,
+  "quoteUpdatesPerSecond": 9984,
+  "uiAppliedPerSecond": 9984,
+  "uiPaintedPerSecond": 9436,
+  "flushPerSecond": 9,
+  "flushedCellsPerSecond": 9436,
+  "maxFlushCells": 1000,
+  "lastFlushCells": 1000,
+  "avgFlushCostMs": 1.01586181640625,
+  "maxFlushCostMs": 7.60107421875,
+  "lastFlushCostMs": 1.15625,
+  "canvasDrawPerSecond": 40,
+  "avgCanvasDrawCostMs": 0.6962600008856873,
+  "maxCanvasDrawCostMs": 2.0830078125,
+  "lastCanvasDrawCostMs": 0.854248046875,
+  "measuredFrequencyHz": 10,
+  "targetFrequencyHz": 10,
+  "frequencyDriftPercent": 0,
+  "quoteUpdates": 529000,
+  "uiAppliedUpdates": 529002,
+  "uiPaintedCells": 500002,
+  "scrollCallbacks": 0,
+  "scrollerSyncCount": 0,
+  "frameCount": 3429,
+  "frameP50Ms": 15.443681001663208,
+  "frameP95Ms": 15.447650000452995,
+  "frameP99Ms": 15.450194001197815,
+  "maxFrameMs": 46.2954120002687,
+  "health": "正常",
+  "healthReason": ""
+}
+```
+
+结论：
+
+- 1/4 表刷新下 P95 15.45ms，P99 15.45ms，健康状态正常。
+- 平均 Canvas draw 仅 0.70ms，最大 2.08ms。
+- 平均 flush 约 1.02ms，最大 7.60ms。
+- 视口级 Canvas 在目标失败场景下达到流畅标准。
+
+### 场景 2：10Hz，整表
+
+原始结果：
+
+```json
+{
+  "scenarioId": "rows100_cols20_10hz_fulltable",
+  "variantId": "D_canvas",
+  "timestamp": 1779292395413,
+  "elapsedMs": 17448,
+  "quoteUpdatesPerSecond": 39890,
+  "uiAppliedPerSecond": 39890,
+  "uiPaintedPerSecond": 38973,
+  "flushPerSecond": 10,
+  "flushedCellsPerSecond": 38973,
+  "maxFlushCells": 4000,
+  "lastFlushCells": 4000,
+  "avgFlushCostMs": 4.068704044117647,
+  "maxFlushCostMs": 17.209228515625,
+  "lastFlushCostMs": 3.9287109375,
+  "canvasDrawPerSecond": 22,
+  "avgCanvasDrawCostMs": 0.7227049482629654,
+  "maxCanvasDrawCostMs": 2.07568359375,
+  "lastCanvasDrawCostMs": 0.6875,
+  "measuredFrequencyHz": 10,
+  "targetFrequencyHz": 10,
+  "frequencyDriftPercent": 0,
+  "quoteUpdates": 696000,
+  "uiAppliedUpdates": 696002,
+  "uiPaintedCells": 680002,
+  "scrollCallbacks": 0,
+  "scrollerSyncCount": 0,
+  "frameCount": 1125,
+  "frameP50Ms": 15.442554999142885,
+  "frameP95Ms": 15.449250999838114,
+  "frameP99Ms": 15.450165998190641,
+  "maxFrameMs": 46.33880099654198,
+  "health": "正常",
+  "healthReason": ""
+}
+```
+
+结论：
+
+- 整表 4000 cell/tick、约 4 万 cell/s 的刷新下，P95 仍稳定 15.45ms。
+- 平均 Canvas draw 约 0.72ms，最大约 2.08ms，说明视口绘制成本与行情刷新范围基本解耦。
+- flush 平均 4.07ms，最大 17.21ms，数据写入成本随整表更新量上升，但仍未破坏 P95。
+- 该结果明显优于组件渲染和大 Canvas 方案。
+
+### 阶段 4 当前结论
+
+- 视口级 Canvas 已通过关键验证。
+- 主观滑动体验已改善为流畅。
+- 在 `100行 * 每侧20列 * 10Hz * 整表` 下仍保持正常健康状态。
+- 当前推荐路线更新为：以视口级 Canvas 作为最终高性能方案原型，后续补齐业务能力，而不是回退到 per-cell 组件或行级 Canvas。
+
+后续验证：
+
+- 20Hz / 50Hz 的 1/4 表、半表、整表。
+- 更大规模：300 行、每侧 40 列。
+- 点击命中测试、行/列高亮、flash、主题/字号、横向边界和纵向惯性手感。
+
+## 2026-05-20 阶段 4：D1.2 100Hz 整表验证
+
+场景：
+
+- 行数：100。
+- 每侧列数：20。
+- 频率：100Hz。
+- 刷新范围：整表。
+- 渲染：`D_canvas` 视口级 Canvas。
+
+原始结果：
+
+```json
+{
+  "scenarioId": "rows100_cols20_100hz_fulltable",
+  "variantId": "D_canvas",
+  "timestamp": 1779292562571,
+  "elapsedMs": 30750,
+  "quoteUpdatesPerSecond": 362799,
+  "uiAppliedPerSecond": 362799,
+  "uiPaintedPerSecond": 37594,
+  "flushPerSecond": 9,
+  "flushedCellsPerSecond": 37594,
+  "maxFlushCells": 4000,
+  "lastFlushCells": 4000,
+  "avgFlushCostMs": 3.5532285696907437,
+  "maxFlushCostMs": 12.288330078125,
+  "lastFlushCostMs": 3.329345703125,
+  "canvasDrawPerSecond": 25,
+  "avgCanvasDrawCostMs": 0.6984116762016076,
+  "maxCanvasDrawCostMs": 2.036865234375,
+  "lastCanvasDrawCostMs": 0.675048828125,
+  "measuredFrequencyHz": 91,
+  "targetFrequencyHz": 100,
+  "frequencyDriftPercent": 9,
+  "quoteUpdates": 11156000,
+  "uiAppliedUpdates": 11156002,
+  "uiPaintedCells": 1156002,
+  "scrollCallbacks": 0,
+  "scrollerSyncCount": 0,
+  "frameCount": 1908,
+  "frameP50Ms": 15.443907000124454,
+  "frameP95Ms": 15.449248000979424,
+  "frameP99Ms": 30.895780999213457,
+  "maxFrameMs": 61.77800999954343,
+  "health": "正常",
+  "healthReason": ""
+}
+```
+
+结论：
+
+- 实测频率 91Hz，目标 100Hz，频率偏差 9%，mock 有效。
+- 行情输入约 36.3 万 cell/s，仍保持 P95 15.45ms。
+- P99 30.90ms，max 61.78ms，存在少量长尾，但 health 正常。
+- 平均 flush 3.55ms，最大 flush 12.29ms。
+- 平均 Canvas draw 0.70ms，最大 draw 2.04ms。
+- 视口级 Canvas 在当前 `100行 * 每侧20列 * 100Hz * 整表` 下仍有明显性能余量。
+
+阶段判断：
+
+- 性能主方案已经收敛，无需继续投入原组件路径或行级 Canvas 原型。
+- 后续重点转向业务能力补齐和真实交互体验：
+  - 点击命中与行/列/cell 选中。
+  - 单元格 flash / 涨跌色 / 背景高亮。
+  - 横纵边界、惯性、回弹手感。
+  - 主题、字号、横屏/折叠屏适配。
+  - 300 行、每侧 40 列真实规模回归。
+
+## 2026-05-21 阶段 4：点击命中与选中高亮
+
+本次代码更新：
+
+- 新增 `CanvasQuoteHitCell`。
+- 视口级 Canvas 支持点击命中：
+  - 屏幕坐标 -> `horizontalOffset / verticalOffset` -> 表格坐标。
+  - 可识别 `LEFT` / `CENTER` / `RIGHT`。
+  - 可返回 row、col、value。
+- 新增选中态：
+  - 选中行浅蓝底色。
+  - 选中 cell 蓝色描边。
+  - 中间行权价列也支持选中。
+- `PerfTest` 页面探针显示当前选中结果：`row / side / col / value`。
+
+验证目标：
+
+- 点击当前可见报价 cell，探针显示正确 row/side/col/value。
+- 点击中间行权价列，side 为 `CENTER`。
+- 横向/纵向拖动后再点击，命中结果仍准确。
+- 行情刷新过程中，选中态不丢失。
+
+## 2026-05-21 阶段 4：行权价两侧反向联动横滑
+
+本次代码更新：
+
+- 视口级 Canvas 横向模型改为“中间行权价固定”。
+- 左侧数据区绘制在行权价左侧，右侧数据区绘制在行权价右侧。
+- 横向拖动使用同一个 `horizontalOffset`。
+- 左侧 cell 坐标：从中间列向左展开，并随 offset 向右移动。
+- 右侧 cell 坐标：从中间列向右展开，并随 offset 向左移动。
+- 因此左右两侧横向滑动联动且方向相反。
+- 左右区域增加可见裁剪判断，避免左侧数据越过中间列显示到右侧，右侧同理。
+- 点击命中同步适配反向联动坐标：
+  - 左侧：`centerStart - x + horizontalOffset -> col`
+  - 右侧：`x - rightStart + horizontalOffset -> col`
+  - 中间行权价列固定命中为 `CENTER`
+
+验证目标：
+
+- 中间行权价列在横向拖动时保持固定。
+- 左右两侧数据横向联动，且方向相反。
+- 左侧数据不会越过行权价显示到右侧。
+- 右侧数据不会越过行权价显示到左侧。
+- 横向拖动后点击命中 col 正确。
+
+## 2026-05-21 阶段 4：四象限与最新价线视觉结构
+
+本次代码更新：
+
+- 视口级 Canvas 增加四象限底色：
+  - Call 上方区域。
+  - Call 下方区域。
+  - Put 上方区域。
+  - Put 下方区域。
+- 中间行权价列保持固定底色。
+- 增加最新价线：
+  - 当前原型使用中间行作为最新价行。
+  - 横线贯穿当前视口。
+  - 中间行权价列上绘制价格标签。
+- 该结构用于贴近目标视觉效果：左右 Call/Put 分区 + 行权价固定列 + 最新价线分割上下象限。
+
+待业务接入：
+
+- 最新价行应由真实标的最新价映射到行权价序列，而不是固定中间行。
+- 价格标签应显示真实最新价，例如 `2345`。
+- 四象限颜色需接入现有主题色和涨跌色规范。
+
+## 2026-05-21 阶段 4：四象限颜色配置
+
+本次代码更新：
+
+- 新增 `CanvasQuotePartitionColors`。
+- 四个分区颜色改为可配置：
+  - `callTop`
+  - `callBottom`
+  - `putTop`
+  - `putBottom`
+- `PerfTest` 增加“分区配色”按钮，可在多套预设中循环。
+- 默认保留红绿淡色分区。
+
+后续接业务时：
+
+- 颜色配置应来自业务主题或组件入参。
+- 暗色模式需要单独提供四象限颜色。
+- 颜色需要和涨跌色、选中态、最新价线保持足够对比。
+
+## 2026-05-21 阶段 4：实时最新价线测试
+
+本次代码更新：
+
+- 最新价线不再固定在中间行中心。
+- `CanvasQuoteTable` 新增 `latestPrice` 入参。
+- 最新价线位置按连续价格索引计算：
+  - 任意小数价格先映射到相邻两档行权价之间的分割线。
+  - 例如最新价在 49 到 50 之间时，统一绘制在 49 和 50 的分割线上。
+  - 这样最新价线不会遮挡行权价文本。
+- 四象限分割也改为按 `latestPrice` 判断：
+  - `row < floor(latestPrice) + 1` 视为最新价上方。
+  - 其余为最新价下方。
+- 最新价标签显示 `latestPrice.toFixed(1)`。
+- `PerfTest` 新增最新价模拟定时器：
+  - 行情启动后每 200ms 小幅波动。
+  - 停止行情时停止最新价模拟。
+  - 用于验证最新价线和标签的实时更新能力。
+
+后续接业务时：
+
+- `latestPrice` 应替换为真实标的最新价映射后的行权价坐标。
+- 需要根据真实行权价数组计算连续索引，而不是当前测试里的行号索引。
+
+## 2026-05-21 阶段 4：惯性滑动与滑动刷新开关
+
+本次代码更新：
+
+- 视口级 Canvas 增加惯性滑动。
+- 手势结束时按最后一段拖动速度启动衰减动画。
+- 速度越大，惯性滚动距离越长。
+- 惯性滚动沿用当前方向锁：
+  - 横向手势只惯性横滑。
+  - 纵向手势只惯性纵滑。
+- 拖动开始、惯性期间、惯性结束会回调滑动状态。
+- `PerfTest` 复用现有“滑动刷新”开关：
+  - 开：滑动和惯性期间继续刷新 Canvas。
+  - 关：滑动和惯性期间行情继续进入缓存，但 scheduler 暂不 flush 到 Canvas，滑动结束后恢复刷新。
+
+验证目标：
+
+- 快速滑动时滚动距离明显大于慢速拖动。
+- 横向惯性期间纵向不漂移。
+- 纵向惯性期间横向不漂移。
+- “滑动刷新关”时，拖动/惯性期间可见行情暂停变化，结束后刷新到最新值。
+- “滑动刷新开”时，拖动/惯性期间数据持续变化。
+
+## 2026-05-21 阶段 4：固定表头与左右展开收起
+
+本次代码更新：
+
+- 表头改为最后绘制，保证固定在最上层，不被数据行、最新价线或选中态覆盖。
+- 表头增加两个按钮：
+  - 左按钮控制 Call/左侧数据展开和收起。
+  - 右按钮控制 Put/右侧数据展开和收起。
+- 收起后对应侧不再绘制数据，也不参与点击命中。
+- 展开/收起后会重新 clamp 横向 offset，避免停留在无效横向位置。
+
+验证目标：
+
+- 纵向滑动时表头始终固定在顶部。
+- 最新价线经过表头区域时不会盖住表头。
+- 左侧按钮能独立收起/展开左侧数据。
+- 右侧按钮能独立收起/展开右侧数据。
+- 收起侧点击不跳转，展开侧点击仍可命中。
+
+## 2026-05-21 阶段 4：展开收起细化
+
+本次代码更新：
+
+- 表头按钮移动到标题上方独立区域，避免覆盖列标题。
+- 左右数据区展开/收起时，中间行权价列会移动到新的目标位置，并带 180ms 动画。
+- 收起 Call/左侧后：
+  - 行权价列移动到左侧。
+  - Put/右侧数据填充剩余空间。
+- 收起 Put/右侧后：
+  - 行权价列移动到右侧。
+  - Call/左侧数据填充剩余空间。
+- 同步修复收起一侧后无法横向移动的问题：
+  - 横向最大 offset 只按仍展开的数据侧计算。
+  - 已收起侧不再参与横向可滚动范围计算。
+- 顶部按钮点击热区改为和视觉位置一致。
+
+验证目标：
+
+- 左右按钮位于标题上方，不遮挡列标题文字。
+- 收起任一侧时，行权价列和另一侧数据有明显移动动画。
+- 收起左侧后，右侧仍可横向滑动查看远端列。
+- 收起右侧后，左侧仍可横向滑动查看远端列。
+- 横向滑动仍保持左右联动且方向相反。
+
+## 2026-05-21 阶段 4：Canvas 可见范围回传修复
+
+问题：
+
+- “只刷可见”打开后，Canvas 模式只刷新初始可见区域。
+- 纵向滑动后，新可见区域不刷新。
+
+原因：
+
+- 组件模式的可见范围来自 `GestureMonitor.onScrollVisibleContentChange`。
+- 视口级 Canvas 使用内部 `verticalOffset` 自绘滚动，没有把滑动后的可见行范围回传给 `PerfTest`。
+- `QuoteUpdateScheduler` 因此一直按旧的 `visibleStartRow / visibleEndRow` drain pending。
+
+本次代码更新：
+
+- `CanvasQuoteTable` 增加 `onVisibleRangeChange(startRow, endRow)`。
+- Canvas 在重绘、手势拖动、惯性滚动、尺寸变化、展开收起动画后同步当前可见行范围。
+- `PerfTest` 接收 Canvas 可见范围并更新：
+  - `visibleStartRow`
+  - `visibleEndRow`
+  - `MockQuoteFeed.setVisibleRange`
+- 修正 scheduler 路径下“滑动刷新关”的数据处理：
+  - 行情仍先进入缓存。
+  - 滑动期间只暂停 flush。
+  - 滑动结束后刷新最新 pending 数据。
+
+验证目标：
+
+- 打开 D Canvas + 只刷可见后，纵向滑动到任意区域，该区域仍持续刷新。
+- 打开“滑动刷新关”后，滑动期间可见数据暂停变化，松手或惯性结束后刷新到最新值。
+- `UI绘制/s` 应跟随当前可见行范围，而不是固定初始首屏。
+
+## 2026-05-21 阶段 4：左右展开按钮互斥规则
+
+本次代码更新：
+
+- 两个表头按钮不再独立 toggle 本侧展开/收起。
+- 左侧按钮语义改为：
+  - 双侧展开时点击：展开左侧 Call 数据，收起右侧 Put 数据。
+  - 左侧单独展开时再次点击：还原为双侧展开。
+- 右侧按钮语义改为：
+  - 双侧展开时点击：展开右侧 Put 数据，收起左侧 Call 数据。
+  - 右侧单独展开时再次点击：还原为双侧展开。
+- 单侧展开状态下点击另一侧标题，会直接切换到另一侧单独展开。
+- 保证不会出现左右两侧同时收起。
+- 表头上方改为参考图样式的左右分区标题：
+  - 左侧显示 `看涨期权Call >>`。
+  - 右侧显示 `<< 看跌期权Put`。
+- 点击命中按整块分区标题区域计算，不再按独立小方按钮计算。
+
+验证目标：
+
+- 点击左侧按钮后，只保留左侧数据展开。
+- 点击右侧按钮后，只保留右侧数据展开。
+- 单侧展开后再次点击当前侧，恢复左右双侧展开。
+- 任意连续点击都不会出现两侧都收起的空表状态。
+- 左右展开入口的视觉位置和参考图一致，位于列标题上方。
+
+## 2026-05-21 阶段 4：点击态简化
+
+本次代码更新：
+
+- 点击单元格后不再绘制选中行高亮。
+- 点击单元格后不再绘制选中单元格边框。
+- 保留点击命中和跳转 `Info` 页面能力。
+
+验证目标：
+
+- 点击任意数据单元格或行权价单元格后，表格视觉不出现高亮态。
+- 点击仍可正常进入详情页并带入 row / side / col / value。
+
+## 2026-05-21 阶段 4：左侧横滑手势方向修正
+
+问题：
+
+- 从左侧 Call 数据区起手横向滑动时，数据移动方向与手势体感相反。
+
+本次代码更新：
+
+- Canvas 记录横向手势起点。
+- 如果从左侧数据区起手，横向 offset 按正向手势增量计算。
+- 如果从右侧数据区起手，保持原有反向映射。
+- 惯性速度同步使用同一套方向符号，避免松手后惯性方向反转。
+
+验证目标：
+
+- 在左侧数据区横向拖动时，内容移动方向符合手势体感。
+- 在右侧数据区横向拖动时，原有方向不回退。
+- 左右数据仍通过同一个 horizontalOffset 联动。
+
+## 2026-05-21 最终推荐方案与最优测试补充
+
+最终推荐方案：
+
+```text
+B 调度合并
++ 可配置 flush 策略
++ 只 flush 当前可见行列
++ 视口级 Canvas 绘制
++ 统一横纵 offset
++ 滑动中刷新策略可配置
+```
+
+不是推荐“整表 Canvas 绘制”。当前性能收益最大的路径是视口级 Canvas：
+
+- Canvas surface 固定为视口大小。
+- 只绘制当前可见行列和少量 buffer。
+- 不可见数据只进入缓存，不触发 UI 绘制。
+- 滚入视口后按当前可见范围读取最新值。
+
+推荐配置：
+
+| 配置项 | 推荐值 | 说明 |
+| --- | --- | --- |
+| `renderMode` | `viewportCanvas` | 视口级 Canvas，非整表 Canvas |
+| `defaultFlushIntervalMs` | `100` | 默认约 10Hz UI 刷新 |
+| `highPriorityFlushIntervalMs` | `33 / 50` | 重点区域或高实时档，需要单独压测 |
+| `degradedFlushIntervalMs` | `200` | 降级档，不作为默认主路径 |
+| `visibleOnly` | `true` | 只 flush 当前可见范围 |
+| `refreshWhileScrolling` | 可配置 | 滑动优先时可关闭，结束后刷新最新值 |
+| `scrollingFlushIntervalMs` | `100 / 200` | 滑动中降频档 |
+| `visibleRowBuffer` | 2-4 行 | 保证快速滑动后新区域能及时刷新 |
+| `enableAutoDegrade` | `true` | P95 / max frame 超阈值时自动降级 |
+
+关于 `200ms`：
+
+- 200ms 等价约 5Hz UI 刷新。
+- 对最新价、买卖价、盘口跳动等高关注数据，用户可能感知到“跳变”。
+- 适合低端设备、滑动中降级、后台或非重点区域。
+- 不建议作为默认主路径；默认先用 100ms，再按真实设备数据决定是否上调或下调。
+
+### 当前最优已验证数据
+
+#### 1. 10Hz，1/4 表刷新，D_canvas 视口级 Canvas
+
+```json
+{
+  "scenarioId": "rows100_cols20_10hz_quartertable",
+  "variantId": "D_canvas",
+  "elapsedMs": 52987,
+  "quoteUpdatesPerSecond": 9984,
+  "uiAppliedPerSecond": 9984,
+  "uiPaintedPerSecond": 9436,
+  "flushPerSecond": 9,
+  "flushedCellsPerSecond": 9436,
