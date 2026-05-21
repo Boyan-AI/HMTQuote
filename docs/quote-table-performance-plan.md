@@ -498,3 +498,476 @@ highlightState
 
 ```text
 startCol = floor(horizontalOffset / columnWidth)
+endCol = ceil((horizontalOffset + viewportWidth) / columnWidth)
+```
+
+### HeaderCanvas
+
+表头也建议 Canvas 化。
+
+原因：
+
+- 表头需要和内容横向 offset 完全同步。
+- 当前表头也会创建多个 item 组件。
+- Canvas 表头可以减少构建和布局成本。
+
+绘制内容：
+
+- 左侧表头。
+- 中间行权价标题。
+- 右侧表头。
+- 分割线和背景。
+
+### Canvas 绘制注意事项
+
+Canvas 方案需要重点验证以下细节，避免性能收益被文本绘制成本抵消：
+
+- 文本测量、截断、居中、最小字号策略。
+- 中文、数字、符号混排时的字体回退和基线一致性。
+- 高 DPI 设备下的线宽、半像素边框和文本清晰度。
+- 单行绘制是否能只重绘脏行，避免因父组件状态变化导致全屏重绘。
+- 当前价格线、选中态、涨跌闪烁是否独立绘制，避免污染所有行的 dirty 状态。
+
+## 备选渲染方案：BuilderNode
+
+HarmonyOS 提供 `BuilderNode` / `NodeController` 等命令式节点 API，可以降低 `@Observed` / `@ObjectLink` 的响应式开销，同时保留原生 `Text` 渲染。对文本密集的行情表，相比 Canvas 主要差异：
+
+| 维度 | Canvas | BuilderNode |
+| --- | --- | --- |
+| 文本质量 | 自己处理度量、截断、对齐 | 复用 ArkUI 文本管线 |
+| 中文 / 字体回退 | 容易踩坑 | 与原生一致 |
+| 无障碍 | 需自行实现 | 复用原生节点 |
+| 单帧成本 | 取决于绘制内容量 | 取决于节点创建 / 复用成本 |
+| 开发量 | 高 | 中 |
+
+ArkUI Canvas 的文本绘制在文本密集场景下并不总是优于原生 `Text`。建议阶段 4 同时做 D1（RowCanvas）和 D2（BuilderNode 行）两个原型，用数据决定方向，不要默认 Canvas 一定更快。
+
+选型标准：
+
+- 如果瓶颈主要是组件数量、布局和响应式 diff，Canvas 优先。
+- 如果瓶颈主要是文本测量和绘制，BuilderNode 或复用原生 `Text` 管线可能更稳。
+- 如果无障碍、字体一致性、文本截断质量优先级高，BuilderNode 风险较低。
+- 如果横滑必须极致稳定，统一 offset + Canvas 的上限更高。
+
+## 滚动方案
+
+### 横向滚动
+
+不再每行维护横向 `Scroller`。
+
+改为维护统一 offset：
+
+```text
+leftHorizontalOffset
+rightHorizontalOffset
+```
+
+横滑时：
+
+```text
+更新 offset
+请求 HeaderCanvas 重绘
+请求可见 RowCanvas 重绘
+```
+
+收益：
+
+- 去掉每帧同步多行 `Scroller`。
+- 去掉每行左右横向 `List`。
+- 横滑成本从多对象同步变成统一状态更新和可见行绘制。
+
+### 纵向滚动
+
+纵向仍可使用 `List` 或 `LazyForEach`。
+
+每行只包含一个 `RowCanvas`，行高固定。
+
+收益：
+
+- 仍然利用 ArkUI 的纵向虚拟化能力。
+- 大幅减少单行组件数量。
+- 纵滑时创建和复用成本降低。
+
+## 交互方案
+
+由于 cell 不再是独立组件，交互需要坐标换算。
+
+点击换算：
+
+```text
+x -> side + col
+y -> row
+```
+
+长按、选中、高亮同理。
+
+需要支持：
+
+- 单元格点击。
+- 单元格长按。
+- 行高亮。
+- 单元格高亮。
+- 当前价格线点击穿透或忽略。
+
+坐标换算必须基于：
+
+- 中间列宽度。
+- 左右区域宽度。
+- 每列宽度。
+- 当前横向 offset。
+- 当前行号。
+
+## 脏行刷新方案
+
+行情更新后不要全表 repaint。
+
+维护：
+
+```text
+dirtyRows: Set<number>
+rowVersions: number[]
+```
+
+flush 时：
+
+```text
+for row in dirtyRows:
+  if row is visible:
+    rowVersions[row]++
+```
+
+`RowCanvas` 监听自己的 `rowVersion`，只在对应行版本变化时重绘。
+
+如果 ArkUI Canvas 不能直接做细粒度 invalidate，则通过行级 version 驱动对应行重建或重绘，避免全表刷新。
+
+## 开发计划
+
+### 阶段 1.0：entry 压测工程
+
+目标：先建立可重复运行的本地压测入口，作为后续所有优化的对照基线。
+
+任务：
+
+- 新增 `entry/src/main/ets/pages/PerfTest.ets`。
+- 新增 `entry/src/main/ets/perf/MockQuoteFeed.ets`。
+- 新增 `entry/src/main/ets/perf/PerfStats.ets`。
+- 新增 `entry/src/main/ets/perf/PerfScenario.ets`。
+- 在 `main_pages.json` 注册压测页面。
+- 压测页面接入当前 `TComponent`。
+- 固定 100 行、每侧 20 列。
+- 支持行情频率配置：10Hz / 20Hz / 50Hz / 100Hz。
+- 支持刷新范围配置：整表 / 半表 / 1/4 表。
+- mock 拿到一批数据后，逐个调用 `DataView.updateByItem` 复制到单元格。
+- 支持开始、停止、重置统计。
+- 支持一键运行标准场景。
+- 支持输出每秒行情输入量、UI 更新量、滚动回调次数和 Scroller 同步次数。
+- 支持实测频率统计，区分设定频率和实际触发频率。
+- 支持结构化导出，优先 JSONL，每条记录包含 scenarioId、variantId、timestamp、metrics。
+- 验证 Mock 时钟源稳定性；若实测频率偏差超过阈值，标记场景无效。
+- 支持阈值告警：P95 / P99 / max 帧间隔、实测频率偏差、行情输入但 UI 无写入。
+
+产出：
+
+- 可独立运行的 `entry` 压测页面。
+- 标准场景参数配置。
+- 后续阶段统一使用的 mock 行情源。
+- 固定字段的结构化指标导出格式。
+
+**Kill criteria**：如果压测页面无法稳定复现卡顿或无法输出可比较指标，不进入阶段 1；先补齐测试能力。
+
+### 阶段 1：性能基准和埋点
+
+目标：使用阶段 1.0 的压测能力跑标准场景，确认主要瓶颈。
+
+任务：
+
+- 使用阶段 1.0 的压测页面运行标准场景矩阵。
+- 在业务代码侧（`DataView.updateByItem`、`ScrollController.LeftHorizontal/RightHorizontal/V2H`、`TComponent.onScrollFrameBegin`、行组件 build/attach）增加调用计数和耗时埋点，结果统一回流到 `PerfStats`。
+- 跑通后导出各场景的结构化报告（FPS、P95/P99 单帧、flush 次数、Scroller 同步次数、可见/不可见 cell 数、内存、GC）。
+- 与 DevEco Profiler 截图对齐时间戳，校验端侧统计准确性。
+
+任务边界：`PerfStats` 的指标计算和导出能力归阶段 1.0，本阶段只做埋点接入和报告产出，不在业务代码里散落各自的计数逻辑。
+
+产出：
+
+- 当前版本性能报告。
+- 不同行列规模下的瓶颈数据。
+- 是否优先改数据调度或渲染结构的判断依据。
+
+**Kill criteria**：埋点数据要能回答"横滑慢是 Scroller 同步、组件重建还是数据更新"。无法定位则不进入下一阶段。
+
+### 阶段 1.5：低风险快速改动
+
+目标：在不动整体架构的前提下，先消化代码层显而易见的成本，避免后续阶段的基准被这些问题拉低。
+
+任务：
+
+- 通过 Profiler 确认 `ForEach` 在当前 `List` 中的实际创建/复用行为；如非可见行构建成本明显，再切换为 `LazyForEach` 并配合稳定 key。
+- 通过 Profiler 确认 per-row 左右 `List` 上的 `.animation({ duration: ANIMATION_DURATION })` 是否参与横滑成本；如有明显开销，移除或限定到展开/收起场景。
+- 修复 `scrollController` 字段初始化 + `aboutToAppear` 双重初始化风险，并让 `Update(rows)` 按目标行数补齐/截断。
+- `Head` / `ExpandCallPut` 等 `@Builder` 中不再每次 `new ListItemData(...)`，改为成员缓存或常量。
+- 复测一次基准。
+
+产出：
+
+- 不依赖架构改动的性能改进版本，作为新的基准 A'。
+- 估算这些改动占整体目标的比例（经验值常在 30-50%）。
+
+**Kill criteria**：如果 A' 已满足验收目标，可暂停阶段 2 以后的工作。
+
+### 阶段 2：行情缓存与批量调度
+
+目标：行情不再直接驱动 UI。
+
+任务：
+
+- 新增 `QuoteTableStore`。
+- 新增 `QuoteUpdateScheduler`，支持 33ms / 100ms / 200ms flush 对照；当前阶段默认先用 100ms 验证合并收益。
+- 定义统一 cellKey、side 枚举、颜色 token、批次 version。
+- 行情入口改为写缓存和 pending 队列。
+- 同一 cell 多次更新只保留最后值。
+- flush 时按行聚合，对每个 dirty row 做一次批处理而非 cell 逐个触发响应式更新。
+- 支持滑动中降频或延后 flush；若关闭"滑动中刷新"，滑动期间只继续写缓存，不取出 pending，滑动结束后 flush 最新值。
+- 压测页面提供 A / B 模式切换，A 为逐个 `updateByItem`，B 为缓存合并后按 flush 间隔写 UI。
+- `UI写入/s` 统计合并前进入调度层的有效 cell 数，`UI绘制/s` 统计合并后实际写入表格的 cell 数。B 是否有效优先看 `UI绘制/s` 是否显著低于 `UI写入/s`，再看 P95 / P99 是否下降。
+- 视觉探针只用于确认表格可见变化，正式压测默认关闭，避免额外 UI 写入污染性能数据。
+- 完成线程模型决策：继续 UI 线程纯数据合并，或迁移到 Worker；无论是否 Worker 化，接口都保持纯数据输入输出。
+
+产出：
+
+- 当前组件结构下的调度优化版本。
+- 对照测试版本 B。
+
+**Kill criteria**：B 相对 A' 在"行情持续刷新中横滑"场景下 P95 单帧 ≤ 22ms **且**相对改善 ≥ 20%。改善不达标则瓶颈不在数据层，跳过阶段 3 直接进入阶段 4-5 评估。
+
+### 阶段 3：可见区域刷新
+
+目标：减少不可见区域的 UI 更新，并评估当前 per-row `Scroller` 架构下横滑可见同步的收益上限。
+
+任务：
+
+- 维护可见行范围。
+- 行情 flush 只更新可见 cell；不可见数据只进入缓存，滚入视窗时再读最新值。
+- 维护横向可见列范围，flush 时只触发可见列的更新。
+- 可选实验：横滑只同步可见行 `Scroller`，同时维护权威横向 offset，并在行 attach / 进入视窗时立即对齐。
+- 若可见行同步引入 offset 错位、边界回弹不一致或 fling 行为异常，则回退横滑同步实验，把统一 offset 留到阶段 4-5。
+
+产出：
+
+- 对照测试版本 C。
+- 明确当前架构能达到的性能上限。
+
+**Kill criteria**：C 相对 B 在大表场景（300+ 行 × 40+ 列）P95 单帧仍 > 22ms，或横滑期间仍有明显长帧，则必须进入阶段 4-5；如果已达验收目标，可冻结当前架构并转入阶段 6。
+
+### 阶段 4：视口级 Canvas 原型与选型
+
+目标：验证渲染层重构收益，并确定最终高性能渲染路线。
+
+当前结论：选定 `D_canvas` 视口级 Canvas，不继续推进 RowCanvas / BuilderNode 双原型。原因是当前原型已经在业务默认和偏高压力档下达标，且滑动体验明显优于 per-cell 组件结构。
+
+任务：
+
+- 完成 `D_canvas` 视口级 Canvas：
+  - 固定视口大小 Canvas。
+  - 统一横纵 offset。
+  - 只绘制当前可见行列和少量 buffer。
+  - 当前行权价列固定。
+  - 左右 Call / Put 横向联动。
+  - 展开 / 收起。
+  - 最新价线。
+  - 点击命中。
+  - 惯性滑动。
+  - 滑动中刷新策略。
+- 接入 `QuoteTableStore` 和 `QuoteUpdateScheduler`。
+- 完成业务默认、偏高压力、极限降级三档压测。
+
+适配清单（两个原型都要验收，避免坑留到阶段 6 才发现）：
+
+- 主题切换：当前已有黑白版适配（FUHM-404），Canvas / BuilderNode 不能依赖 `$r('app.color...')` 自动重绘，必须订阅主题变化并主动 invalidate 所有可见行。
+- 系统大字号：当前 `ItemComponent` 用 `minFontSize` / `maxFontSize` 自适应；Canvas 需自行二分测量，BuilderNode 需确认 `Text` 在 `BuilderNode` 内仍能响应系统字号。
+- 横屏 / 折叠屏 / 平板：可见列从 10 涨到 30，单行绘制内容约 3 倍，性能预算必须重新跑一次而不是只跑竖屏。
+- 屏幕旋转 / 窗口尺寸变化：原型要能正确重算列宽和可见区，并在切换瞬间不留残影。
+
+选型报告产出维度：
+
+- 各场景 FPS / P95 / P99。
+- 文本质量主观评分（含中英文混排、字号自适应、截断对齐）。
+- 内存占用（含每个 RowCanvas 的位图开销估算）。
+- 主题 / 字号 / 旋转适配的完成度和实现复杂度。
+- 开发与维护成本评估。
+
+产出：
+
+- `D_canvas` 视口级 Canvas 原型。
+- 渲染方案选型报告。
+- 默认压测档位和推荐配置。
+
+**阶段结论**：业务默认档位 `20Hz + 1/4 表 + 100ms flush + 只刷可见 + 滑动刷新关` 达标；偏高压力档 `20Hz + 半表 + 100ms flush` 达标；极限降级档仅作为边界测试，不作为默认业务目标。
+
+### 阶段 5：业务组件化接入
+
+目标：将 entry 压测原型抽象为可接入真实业务的行情表组件，并保留压测页作为回归入口。
+
+任务：
+
+- 从 `entry/src/main/ets/perf/CanvasQuoteTable.ets` 提取业务组件接口。
+- 定义真实业务数据输入模型：
+  - 行权价数组。
+  - Call / Put 列配置。
+  - 最新价。
+  - 变动 cell delta。
+  - 颜色 / 闪烁 / 主题 token。
+- 定义 `QuoteTablePerfConfig`：
+  - 默认 flush 100ms。
+  - 高实时档 33 / 50ms。
+  - 降级档 200ms。
+  - 只刷可见。
+  - 滑动中刷新策略。
+  - buffer 行列数。
+  - 自动降级阈值。
+- 将 mock 的 1 基指标列序替换为真实业务列定义。
+- 将最新价线从测试行号索引替换为真实行权价映射。
+- 将点击 `Info` 测试页替换为业务回调，例如 `onCellClick(row, side, col, value, rowData)`。
+- 保留 `PerfTest` 页面作为回归测试入口，不直接混入业务页面。
+- 接入 feature flag，新旧渲染路径可在运行时切换。
+
+接口约束：
+
+- 不修改现有 `TComponent`、`DataView`、`GestureMonitor` 的对外签名。
+- 高性能路径通过新增 `TCanvasComponent` 并行提供。
+- 配置通过新增 `QuoteTablePerfConfig` 提供。
+- 旧业务可继续使用 `TComponent`；新业务可按需切换到 `TCanvasComponent`。
+- 新增类和新增方法必须写中文注释。
+- 命名采用业界常见含义：
+  - `Config` 表示配置。
+  - `Component` 表示 ArkUI 组件。
+  - `viewportCanvas` 表示视口级 Canvas 渲染。
+
+灰度与回滚策略：
+
+- 默认走旧渲染，feature flag 控制开启新渲染，按版本 / 用户分组灰度。
+- 旧渲染路径在阶段 5 完成后保留至少两个发布版本，不立即删除。
+- 灰度期间 `PerfStats` 双路径采集，便于线上对比。
+- 回滚条件提前定义：例如关键场景 P95 / 崩溃率 / 用户投诉超过阈值，自动或一键回退到旧路径。
+
+产出：
+
+- 可复用业务组件。
+- 真实行情 delta 接入适配层。
+- 大表格和高频行情下的回归报告。
+- feature flag 切换机制与灰度方案文档。
+
+**Kill criteria**：业务组件在真实 20Hz 部分变动行情下，业务默认和偏高压力档 P95 ≤ 16.7ms；横纵滑动 P95 ≤ 22ms；极限场景触发降级后不出现连续异常。
+
+### 阶段 6：交互和视觉补齐
+
+目标：补齐生产可用能力。
+
+任务：
+
+- 单元格点击。
+- 单元格长按。
+- 行/单元格点击后默认不高亮；如业务需要，作为可配置项。
+- 涨跌色闪烁或短暂高亮。
+- 当前价格线。
+- 左右区域展开/收起。
+- 表头同步。
+- 边界滚动处理。
+
+产出：
+
+- 功能完整的 Canvas 行情表。
+
+### 阶段 7：压测调参和降级策略
+
+目标：稳定生产性能，固化回归基线。
+
+任务：
+
+- 根据压测结果调整 flush 间隔。
+- 根据滑动状态调整刷新优先级。
+- 数据量过大时降低视觉效果。
+- 建立低端设备参数。
+- 记录最终推荐配置。
+- 建立自动化回归基线：mock 行情驱动 + 帧统计脚本，CI 或日常构建中输出 FPS / P95 / P99，阈值告警。
+- 固化报告格式和阈值，确保 A/A'/B/C/D1/D2/D 的报告可以直接 diff。
+- 增加低端设备、横屏/折叠屏/平板场景的固定回归用例。
+
+产出：
+
+- 最终性能报告。
+- 推荐参数。
+- 可重复执行的回归基线脚本和阈值。
+
+## 风险和取舍
+
+### Canvas 方案收益
+
+- 显著减少 ArkUI 组件数量。
+- 显著减少响应式对象更新。
+- 去掉大量横向 `Scroller` 同步。
+- 横滑和行情刷新更稳定。
+- 更适合高频行情表。
+- 视口级 Canvas 可自行控制固定表头、行权价固定列、左右反向联动横滑、展开收起动画和滑动期间暂停刷新。
+
+### Canvas 方案成本
+
+- 点击、长按需要自己做坐标换算。
+- 文本绘制、截断、对齐需要自己处理。
+- 可访问性不如原生组件。
+- 单元格级动画需要自行实现。
+- 展开收起、惯性、方向锁、命中测试、最新价线、固定表头等交互都需要维护自定义坐标系统。
+- 开发量高于懒加载或局部优化。
+- 主题切换、系统大字号、屏幕旋转需要自己重绘和重新测量，原有声明式适配链路不再适用。
+- 每个 RowCanvas 各持位图，纵向可见行多时内存占用需要监控。
+
+### BuilderNode 方案收益
+
+- 复用 ArkUI 文本管线，中文 / 字体回退 / 系统字号天然一致。
+- 命令式更新跳过响应式 diff，适合高频点更新。
+- 无障碍、文本截断等能力可继承原生节点。
+
+### BuilderNode 方案成本
+
+- `BuilderNode` / `NodeController` API 相对较新，需要确认目标 HarmonyOS 版本范围下的兼容性和稳定性。
+- 命令式更新写多了维护成本接近手写 DOM，需要约束更新入口集中在调度层。
+- 公开文档和社区案例少于声明式，踩坑需要自己定位。
+- 与现有声明式组件的混用边界（事件、布局、动画）需要专门梳理。
+
+## 推荐决策
+
+推荐分阶段验证、按 Kill criteria 决定是否继续，而不是默认走完所有阶段。
+
+推荐路线：
+
+```text
+阶段 1.0 ：entry 压测工程（先让性能问题可重复）
+阶段 1   ：埋点和基准
+阶段 1.5 ：低风险快速改动（先吃掉代码层成本）
+阶段 2   ：行情缓存与批量调度（33ms / 100ms / 200ms flush 对照）
+阶段 3   ：可见区域刷新（数据只刷可见）
+阶段 4   ：视口级 Canvas 方案验证并确认主路线
+阶段 5   ：落地 common_sideslipview，新增 TCanvasComponent，不破坏旧接口
+阶段 6   ：真实业务接入、交互补齐和主题配置
+阶段 7   ：压测调参、自动降级和回归基线固化
+```
+
+阶段 4 已用数据确认视口级 Canvas 是当前收益最大的路线。后续不再优先推进 RowCanvas / BuilderNode，除非真实业务接入后出现 Canvas 无法覆盖的能力缺口。
+
+不建议只做懒加载。懒加载能减少首屏和屏幕外构建压力，但无法根治高频行情下的 cell 组件更新、横向 `Scroller` 同步和布局成本问题。
+
+## 当前业务组件开发约束
+
+`common_sideslipview` 是真实业务组件目录，后续开发遵守以下约束：
+
+- 保留 `TComponent`、`DataView`、`GestureMonitor`、`TController` 等现有对外能力。
+- 新能力优先新增导出，不直接破坏旧接口。
+- 高性能路线使用 `TCanvasComponent`。
+- 性能参数集中在 `QuoteTablePerfConfig`，后续实际业务可把 flush 间隔、可见刷新、滑动中暂停刷新作为配置项下发。
+- 文件保持职责单一：
+  - 组件生命周期和手势在 `TCanvasComponent`。
+  - 绘制逻辑在 `TCanvasRenderer`。
+  - 数据适配在 `TCanvasDataAdapter`。
+  - 常量在 `TCanvasConstants`。
+- 新增类和新增方法必须写中文注释。
+- 示例和接入说明维护在 `common_sideslipview/README.md` 与 `entry/src/main/ets/pages/QuoteTableExample.ets`。
