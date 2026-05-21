@@ -525,3 +525,503 @@
   "level": "警告",
   "reason": "P95帧间隔46.3ms>=33ms",
   "scenarioId": "rows100_cols20_10hz_quartertable",
+  "variantId": "A_current",
+  "elapsedMs": 43219,
+  "quoteUpdatesPerSecond": 9972,
+  "uiAppliedPerSecond": 10270,
+  "uiPaintedPerSecond": 10270,
+  "flushPerSecond": 10,
+  "flushedCellsPerSecond": 9972,
+  "maxFlushCells": 1000,
+  "lastFlushCells": 1000,
+  "avgFlushCostMs": 12.06119149688225,
+  "maxFlushCostMs": 32.853271484375,
+  "lastFlushCostMs": 13.88525390625,
+  "measuredFrequencyHz": 10,
+  "targetFrequencyHz": 10,
+  "frequencyDriftPercent": 0,
+  "frameP95Ms": 46.323494002223015,
+  "frameP99Ms": 46.33345400169492,
+  "maxFrameMs": 77.20011500269175,
+  "scrollCallbacks": 1076,
+  "scrollerSyncCount": 0
+}
+```
+
+结论：
+
+- A_current 每秒 flush 约 9972 cell，平均 flush 耗时约 12.1ms，最大 flush 耗时约 32.9ms。
+- P95 仍为 46.3ms，说明单次 flush 最大耗时已经足以压缩帧预算。
+
+### 2. B_scheduler，flush 200ms
+
+原始结果：
+
+```json
+{
+  "level": "异常",
+  "reason": "P95帧间隔61.7ms>=50ms",
+  "scenarioId": "rows100_cols20_10hz_quartertable",
+  "variantId": "B_scheduler",
+  "elapsedMs": 1087,
+  "quoteUpdatesPerSecond": 9200,
+  "uiAppliedPerSecond": 9200,
+  "uiPaintedPerSecond": 4876,
+  "flushPerSecond": 5,
+  "flushedCellsPerSecond": 4600,
+  "maxFlushCells": 1000,
+  "lastFlushCells": 1000,
+  "avgFlushCostMs": 13.533642578125,
+  "maxFlushCostMs": 16.851806640625,
+  "lastFlushCostMs": 11.40673828125,
+  "measuredFrequencyHz": 9,
+  "targetFrequencyHz": 10,
+  "frequencyDriftPercent": 10,
+  "frameP95Ms": 61.748756002634764,
+  "frameP99Ms": 77.18994199857116,
+  "maxFrameMs": 77.18994199857116,
+  "scrollCallbacks": 8,
+  "scrollerSyncCount": 0
+}
+```
+
+```json
+{
+  "level": "警告",
+  "reason": "P95帧间隔46.3ms>=33ms",
+  "scenarioId": "rows100_cols20_10hz_quartertable",
+  "variantId": "B_scheduler",
+  "elapsedMs": 2090,
+  "quoteUpdatesPerSecond": 9570,
+  "uiAppliedPerSecond": 9570,
+  "uiPaintedPerSecond": 5072,
+  "flushPerSecond": 5,
+  "flushedCellsPerSecond": 4785,
+  "maxFlushCells": 1000,
+  "lastFlushCells": 1000,
+  "avgFlushCostMs": 12.7260009765625,
+  "maxFlushCostMs": 16.851806640625,
+  "lastFlushCostMs": 12.902587890625,
+  "measuredFrequencyHz": 10,
+  "targetFrequencyHz": 10,
+  "frequencyDriftPercent": 0,
+  "frameP95Ms": 46.33159899711609,
+  "frameP99Ms": 77.18994199857116,
+  "maxFrameMs": 77.21613299846649,
+  "scrollCallbacks": 38,
+  "scrollerSyncCount": 0
+}
+```
+
+结论：
+
+- B_scheduler 把 flush 频率降到约 5 次/秒，`UI绘制/s` 降到约 5000。
+- 单次最大 flush 耗时约 16.9ms，已经接近一帧预算。
+- P95 仍为 46.3ms，说明降低 flush 频率仍不足以解决长帧。
+
+### 3. C_visible_scheduler，flush 200ms
+
+原始结果：
+
+```json
+{
+  "scenarioId": "rows100_cols20_10hz_quartertable",
+  "variantId": "C_visible_scheduler",
+  "timestamp": 1779289647432,
+  "elapsedMs": 25284,
+  "quoteUpdatesPerSecond": 10006,
+  "uiAppliedPerSecond": 10007,
+  "uiPaintedPerSecond": 0,
+  "flushPerSecond": 0,
+  "flushedCellsPerSecond": 0,
+  "maxFlushCells": 0,
+  "lastFlushCells": 0,
+  "avgFlushCostMs": 0,
+  "maxFlushCostMs": 0,
+  "lastFlushCostMs": 0,
+  "measuredFrequencyHz": 10,
+  "targetFrequencyHz": 10,
+  "frequencyDriftPercent": 0,
+  "quoteUpdates": 253000,
+  "uiAppliedUpdates": 253004,
+  "uiPaintedCells": 4,
+  "scrollCallbacks": 893,
+  "scrollerSyncCount": 0,
+  "frameCount": 1636,
+  "frameP50Ms": 15.442796997725964,
+  "frameP95Ms": 15.45040499791503,
+  "frameP99Ms": 15.451319999992847,
+  "maxFrameMs": 15.45167500153184,
+  "health": "正常",
+  "healthReason": ""
+}
+```
+
+结论：
+
+- 该结果不能作为 C 性能收益结论。
+- `flushPerSecond=0`、`uiPaintedPerSecond=0` 表示 C 实际没有刷新可见表格。
+- 根因：旧版 `QuarterTable` mock 按 index 顺序刷新前 25 行；组件启动后会滚到中间行附近，可见行与 pending 行没有交集。
+- 已修正 mock：`FullTable` / `HalfTable` / `QuarterTable` 改为按全表行列均匀分布，避免 1/4 表只落在前 25 行。
+
+下一步：
+
+- 重新跑 A / B / C 三组。
+- 重点确认 C 的 `flushPerSecond` 和 `uiPaintedPerSecond` 必须大于 0；否则仍然不是有效测试。
+
+## 2026-05-20 阶段 3：修正 mock 后 A/B/C 对照
+
+固定参数：
+
+- 行数：100。
+- 每侧列数：20。
+- 频率：10Hz。
+- 刷新范围：1/4 表。
+- mock 分布：`QuarterTable` 已修正为全表均匀分布。
+- 视觉探针：关闭。
+- 整表刷新：关闭。
+
+### 1. A_current
+
+原始结果：
+
+```json
+{
+  "level": "异常",
+  "reason": "P95帧间隔92.6ms>=50ms",
+  "scenarioId": "rows100_cols20_10hz_quartertable",
+  "variantId": "A_current",
+  "elapsedMs": 6575,
+  "quoteUpdatesPerSecond": 9734,
+  "uiAppliedPerSecond": 10318,
+  "uiPaintedPerSecond": 10318,
+  "flushPerSecond": 10,
+  "flushedCellsPerSecond": 9734,
+  "maxFlushCells": 1000,
+  "lastFlushCells": 1000,
+  "avgFlushCostMs": 12.08392333984375,
+  "maxFlushCostMs": 29.246337890625,
+  "lastFlushCostMs": 10.23095703125,
+  "measuredFrequencyHz": 10,
+  "targetFrequencyHz": 10,
+  "frequencyDriftPercent": 0,
+  "frameP95Ms": 92.6394210010767,
+  "frameP99Ms": 123.53730399906635,
+  "maxFrameMs": 138.96890700235963,
+  "scrollCallbacks": 3,
+  "scrollerSyncCount": 0
+}
+```
+
+```json
+{
+  "level": "异常",
+  "reason": "P95帧间隔123.5ms>=50ms",
+  "scenarioId": "rows100_cols20_10hz_quartertable",
+  "variantId": "A_current",
+  "elapsedMs": 11802,
+  "quoteUpdatesPerSecond": 9829,
+  "uiAppliedPerSecond": 10418,
+  "uiPaintedPerSecond": 10418,
+  "flushPerSecond": 10,
+  "flushedCellsPerSecond": 9829,
+  "maxFlushCells": 1000,
+  "lastFlushCells": 1000,
+  "avgFlushCostMs": 13.297817887931034,
+  "maxFlushCostMs": 29.246337890625,
+  "lastFlushCostMs": 10.3671875,
+  "measuredFrequencyHz": 10,
+  "targetFrequencyHz": 10,
+  "frequencyDriftPercent": 0,
+  "frameP95Ms": 123.51673999801278,
+  "frameP99Ms": 138.96890700235963,
+  "maxFrameMs": 138.97090500220656,
+  "scrollCallbacks": 3,
+  "scrollerSyncCount": 0
+}
+```
+
+结论：
+
+- A_current 在修正 mock 后退化为异常，P95 最高达到 123.5ms。
+- 单次 flush 最大耗时约 29.2ms，已经超过 16.7ms 一帧预算。
+
+### 2. B_scheduler
+
+原始结果：
+
+```json
+{
+  "level": "异常",
+  "reason": "P95帧间隔123.5ms>=50ms",
+  "scenarioId": "rows100_cols20_10hz_quartertable",
+  "variantId": "B_scheduler",
+  "elapsedMs": 12266,
+  "quoteUpdatesPerSecond": 9865,
+  "uiAppliedPerSecond": 9865,
+  "uiPaintedPerSecond": 7950,
+  "flushPerSecond": 8,
+  "flushedCellsPerSecond": 7500,
+  "maxFlushCells": 1000,
+  "lastFlushCells": 1000,
+  "avgFlushCostMs": 13.058779509171195,
+  "maxFlushCostMs": 30.5361328125,
+  "lastFlushCostMs": 16.38916015625,
+  "measuredFrequencyHz": 10,
+  "targetFrequencyHz": 10,
+  "frequencyDriftPercent": 0,
+  "frameP95Ms": 123.5271669998765,
+  "frameP99Ms": 138.96231000125408,
+  "maxFrameMs": 185.29100200161338,
+  "scrollCallbacks": 55,
+  "scrollerSyncCount": 0
+}
+```
+
+```json
+{
+  "level": "异常",
+  "reason": "P95帧间隔123.5ms>=50ms",
+  "scenarioId": "rows100_cols20_10hz_quartertable",
+  "variantId": "B_scheduler",
+  "elapsedMs": 17449,
+  "quoteUpdatesPerSecond": 9915,
+  "uiAppliedPerSecond": 9915,
+  "uiPaintedPerSecond": 7351,
+  "flushPerSecond": 7,
+  "flushedCellsPerSecond": 6935,
+  "maxFlushCells": 1000,
+  "lastFlushCells": 1000,
+  "avgFlushCostMs": 13.371146209969009,
+  "maxFlushCostMs": 33.274658203125,
+  "lastFlushCostMs": 11.162109375,
+  "measuredFrequencyHz": 10,
+  "targetFrequencyHz": 10,
+  "frequencyDriftPercent": 0,
+  "frameP95Ms": 123.52217599749565,
+  "frameP99Ms": 138.958107996732,
+  "maxFrameMs": 185.29100200161338,
+  "scrollCallbacks": 109,
+  "scrollerSyncCount": 0
+}
+```
+
+结论：
+
+- B_scheduler 相比 A 降低了部分 `UI绘制/s`，但 P95 仍为 123.5ms。
+- 单次最大 flush 耗时约 33.3ms，仍超过 2 帧预算。
+- 当前 B 的批量合并不足以改善帧稳定性。
+
+### 3. C_visible_scheduler
+
+原始结果：
+
+```json
+{
+  "level": "异常",
+  "reason": "P95帧间隔123.5ms>=50ms",
+  "scenarioId": "rows100_cols20_10hz_quartertable",
+  "variantId": "C_visible_scheduler",
+  "elapsedMs": 11909,
+  "quoteUpdatesPerSecond": 9909,
+  "uiAppliedPerSecond": 9909,
+  "uiPaintedPerSecond": 1324,
+  "flushPerSecond": 7,
+  "flushedCellsPerSecond": 876,
+  "maxFlushCells": 120,
+  "lastFlushCells": 120,
+  "avgFlushCostMs": 11.133004520716293,
+  "maxFlushCostMs": 26.858154296875,
+  "lastFlushCostMs": 12.358642578125,
+  "measuredFrequencyHz": 10,
+  "targetFrequencyHz": 10,
+  "frequencyDriftPercent": 0,
+  "frameP95Ms": 123.534907002002,
+  "frameP99Ms": 138.9690800011158,
+  "maxFrameMs": 154.39085299894214,
+  "scrollCallbacks": 35,
+  "scrollerSyncCount": 0
+}
+```
+
+```json
+{
+  "level": "异常",
+  "reason": "P95帧间隔123.5ms>=50ms",
+  "scenarioId": "rows100_cols20_10hz_quartertable",
+  "variantId": "C_visible_scheduler",
+  "elapsedMs": 17200,
+  "quoteUpdatesPerSecond": 9884,
+  "uiAppliedPerSecond": 9884,
+  "uiPaintedPerSecond": 1390,
+  "flushPerSecond": 8,
+  "flushedCellsPerSecond": 915,
+  "maxFlushCells": 120,
+  "lastFlushCells": 120,
+  "avgFlushCostMs": 10.943003934972426,
+  "maxFlushCostMs": 26.858154296875,
+  "lastFlushCostMs": 9.02978515625,
+  "measuredFrequencyHz": 10,
+  "targetFrequencyHz": 10,
+  "frequencyDriftPercent": 0,
+  "frameP95Ms": 123.53440199792385,
+  "frameP99Ms": 138.9690800011158,
+  "maxFrameMs": 154.39085299894214,
+  "scrollCallbacks": 67,
+  "scrollerSyncCount": 0
+}
+```
+
+结论：
+
+- C_visible_scheduler 已经有效刷新：`flushPerSecond > 0`，`uiPaintedPerSecond > 0`。
+- C 将 `UI绘制/s` 从 A 的约 10400 降到约 1400，降幅约 86%。
+- C 将单次 flush cell 数从 1000 降到 120。
+- 但 C 的 P95 仍为 123.5ms，说明仅减少可见写入量仍不能解决当前长帧。
+- C 单次最大 flush 耗时仍达 26.9ms，120 个 cell 写入仍可能超过一帧预算。
+
+### 阶段 3 当前判断
+
+- 数据层优化已经证明有效：B/C 都能显著降低 UI 写入量。
+- 帧稳定性没有改善，说明瓶颈已经转移或主要存在于渲染结构、布局重算、组件响应式传播、滚动同步或 `updateByItem` setter 触发链路。
+- 下一步不建议继续扩大 scheduler 参数调优。应进入结构验证：
+  - 先做 `C_chunked_visible_scheduler`：把一次可见 flush 的 120 cell 拆成多帧小批量，验证单帧写入预算。
+  - 同时准备 RowCanvas / BuilderNode 原型，验证减少 cell 组件数量后的性能上限。
+
+## 2026-05-20 阶段 4：D_canvas 原型入口
+
+本次代码更新新增 `D_canvas`：
+
+- 新增 `CanvasQuoteTable`。
+- 新增 `CanvasQuoteGridData`，用普通数组保存左右两侧 cell 文本和颜色。
+- D 模式下不再使用每个 cell 一个 ArkUI 组件，而是由 Canvas 绘制表格。
+- D 模式仍复用 `MockQuoteFeed`、`QuoteTableStore`、`QuoteUpdateScheduler` 和 `PerfStats`。
+- Canvas flush 时批量写数组，整批只递增一次 `canvasRevision`，避免每个 cell 触发一次 Canvas 重绘。
+
+当前原型边界：
+
+- 这是 D1 性能上限原型，不是最终业务组件。
+- 当前绘制整张 100 行表格，未做行级 Canvas 拆分、可见列裁剪、点击坐标换算、主题/字号完整适配。
+- 用于验证“去掉 per-cell ArkUI 组件后，P95 和 flush cost 是否显著下降”。
+
+下一轮测试：
+
+1. A_current，10Hz，1/4 表，组件渲染。
+2. C_visible_scheduler，10Hz，1/4 表，组件渲染，只刷可见开。
+3. D_canvas，10Hz，1/4 表，Canvas 渲染。
+
+重点观察：
+
+- `variantId` 应为 `D_canvas`。
+- `uiPaintedPerSecond` 是否与 B/C 同一量级。
+- `maxFlushCostMs` 是否明显低于 C 的 26.9ms。
+- `frameP95Ms` 是否从 123ms 降回 16-33ms 区间。
+
+判断标准：
+
+- 如果 D_canvas 的 P95 明显下降，说明主瓶颈是 per-cell 组件结构和响应式 setter 链路。
+- 如果 D_canvas 的 P95 仍高，需要继续拆分 Canvas 绘制范围，检查整表 Canvas 重绘成本、Scroll 嵌套和 VSync 采样。
+
+## 2026-05-20 阶段 4：D_canvas 首轮验证
+
+固定参数：
+
+- 行数：100。
+- 每侧列数：20。
+- 频率：10Hz。
+- 刷新范围：1/4 表。
+- 视觉探针：关闭。
+- 整表刷新：关闭。
+
+### 1. A_current，组件渲染
+
+原始结果：
+
+```json
+{
+  "level": "异常",
+  "reason": "P95帧间隔77.2ms>=50ms",
+  "scenarioId": "rows100_cols20_10hz_quartertable",
+  "variantId": "A_current",
+  "elapsedMs": 1972,
+  "quoteUpdatesPerSecond": 9636,
+  "uiAppliedPerSecond": 10214,
+  "uiPaintedPerSecond": 10214,
+  "flushPerSecond": 10,
+  "flushedCellsPerSecond": 9636,
+  "maxFlushCells": 1000,
+  "lastFlushCells": 1000,
+  "avgFlushCostMs": 15.003122430098685,
+  "maxFlushCostMs": 39.736328125,
+  "lastFlushCostMs": 18.873046875,
+  "measuredFrequencyHz": 10,
+  "targetFrequencyHz": 10,
+  "frequencyDriftPercent": 0,
+  "frameP95Ms": 77.18467900156975,
+  "frameP99Ms": 123.53010099753737,
+  "maxFrameMs": 123.53010099753737,
+  "scrollCallbacks": 0,
+  "scrollerSyncCount": 0
+}
+```
+
+```json
+{
+  "level": "异常",
+  "reason": "P95帧间隔61.8ms>=50ms",
+  "scenarioId": "rows100_cols20_10hz_quartertable",
+  "variantId": "A_current",
+  "elapsedMs": 6996,
+  "quoteUpdatesPerSecond": 9863,
+  "uiAppliedPerSecond": 10454,
+  "uiPaintedPerSecond": 10454,
+  "flushPerSecond": 10,
+  "flushedCellsPerSecond": 9863,
+  "maxFlushCells": 1000,
+  "lastFlushCells": 1000,
+  "avgFlushCostMs": 13.21636520606884,
+  "maxFlushCostMs": 39.736328125,
+  "lastFlushCostMs": 10.729736328125,
+  "measuredFrequencyHz": 10,
+  "targetFrequencyHz": 10,
+  "frequencyDriftPercent": 0,
+  "frameP95Ms": 61.76946100220084,
+  "frameP99Ms": 92.64565600082278,
+  "maxFrameMs": 123.53010099753737,
+  "scrollCallbacks": 71,
+  "scrollerSyncCount": 0
+}
+```
+
+结论：
+
+- A_current 仍为异常，P95 在 61-77ms 区间。
+- 组件渲染下平均 flush 耗时约 13-15ms，最大 flush 耗时约 39.7ms。
+
+### 2. 复测记录，variantId 仍为 A_current
+
+原始结果：
+
+```json
+{
+  "level": "异常",
+  "reason": "P95帧间隔61.8ms>=50ms",
+  "scenarioId": "rows100_cols20_10hz_quartertable",
+  "variantId": "A_current",
+  "elapsedMs": 16969,
+  "quoteUpdatesPerSecond": 8604,
+  "uiAppliedPerSecond": 9120,
+  "uiPaintedPerSecond": 9120,
+  "flushPerSecond": 9,
+  "flushedCellsPerSecond": 8604,
+  "maxFlushCells": 1000,
+  "lastFlushCells": 1000,
+  "avgFlushCostMs": 13.243821235552225,
+  "maxFlushCostMs": 27.516357421875,
+  "lastFlushCostMs": 11.486328125,
+  "measuredFrequencyHz": 9,
+  "targetFrequencyHz": 10,
+  "frequencyDriftPercent": 10,
+  "frameP95Ms": 61.769393999129534,
+  "frameP99Ms": 77.20899500325322,
+  "maxFrameMs": 77.21277099847794,
