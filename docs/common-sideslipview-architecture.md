@@ -160,3 +160,93 @@ private applyQuoteResponse(cells: ServerQuoteCell[], latestPrice: string): void 
 
 ### 5.1 点击
 
+- 顶部 Call/Put 标题区：切换左右展开态。
+- 顶部中间设置图标：触发 `onSettingClick()`。
+- 行权价表头：组件调用 `onStrikeSortToggle(ascending)` 通知业务目标排序方向，表头箭头由业务传入的 `strikeAscending` 驱动。
+- 数据区单元格：
+  - 先调用旧的 `gestureMonitor.onClick(row, side, strike)`。
+  - 再按命中情况调用 `onCellClick(row, side, col, value)`。
+
+业务侧收到 `onStrikeSortToggle(ascending)` 后，应保存排序态、主动重排传入的 `DataView`，并把新的 `strikeAscending` 传回组件。这样普通行情或单元格增量更新时，业务的 row 索引与当前数据顺序始终由同一层维护，避免组件内部重排后业务仍按旧顺序写入导致错行。
+
+### 5.2 滑动
+
+- PanGesture 起手后先锁定横向或纵向。
+- 横向滑动只影响左右报价区偏移，中间行权价列固定。
+- 纵向滑动影响所有数据行。
+- 如果业务传入 `onVerticalEdgeScroll(offset)`，纵向滑动会先消费 T 型报价内部滚动；到顶或到底后，未消费的剩余 offset 会回调给业务层，业务可调用外层 `Scroller.scrollBy(0, offset)` 继续滚动父页面。
+- 松手后按速度启动惯性滑动。
+- `refreshWhileScrolling=false` 时，组件会在滑动中延迟重绘数据变化；业务侧仍建议缓存高频行情，滑动结束后合并刷新。
+
+### 5.3 展开收起
+
+`expandState` 有三种状态：
+
+- `Normal`：左右区都可见，行权价列居中。
+- `Left`：看涨区展开，行权价列移动到右侧。
+- `Right`：看跌区展开，行权价列移动到左侧。
+
+展开收起会触发布局动画，动画过程中持续 clamp 横纵 offset，避免展开后滚动范围越界。
+
+## 6. 主题与颜色
+
+Canvas 不能直接稳定使用 ArkUI `$r(...)` 资源色，所以主题默认使用 `#AARRGGBB` 字符串。
+
+颜色来源优先级：
+
+1. 单元格自己的 `fontColor`，如果是字符串且非空则直接使用。
+2. `ResourceColor` 是数字时转成 `#AARRGGBB`。
+3. 其他情况或空字符串时，回退到主题 token。
+
+暗黑模式由 `TCanvasComponent.darkMode` 控制：
+
+- `false`：使用业务传入 config 的亮色主题基线副本。
+- `true`：使用 `QuoteTableThemeTokens.dark()`。
+
+业务如果需要品牌色定制，应在组件首次出现前修改 `config.themeTokens`。运行期大规模替换配置对象不属于当前稳定协议，后续如有需要应增加显式 `configRevision` 或专门 watcher。
+
+## 7. 扩展建议
+
+新增 Canvas 能力时建议遵循以下边界：
+
+- 组件状态、手势和生命周期放在 `TCanvasComponent`。
+- 纯绘制逻辑放在 `TCanvasRenderer`。
+- 数据读取、颜色转换和缺失兜底放在 `TCanvasDataAdapter`。
+- 服务端数据结构到 `DataView` 的转换放在 `QuoteTableDeltaAdapter` 或业务层 adapter。
+- 新的公开配置放在 `QuoteTablePerfConfig` 或 `QuoteTableThemeTokens`，并同步 `clone()`。
+- 新的公开能力需要从 `Index.ets` 导出，并同步 README 或本文档。
+
+避免在 renderer 中直接修改 `DataView` 或组件状态，否则会破坏“状态快照 -> 纯绘制”的边界。
+
+## 8. 常见问题排查
+
+- 点击单元格无响应：
+  - 检查 `dataView.createDefaultData(...)` 是否已执行。
+  - 检查行列索引是否越界。
+  - 检查是否点击在表头区域，表头区域不会触发普通单元格回调。
+
+- 普通行情刷新导致表格跳动：
+  - 检查普通刷新是否错误递增了 `latestPriceAnchorRevision`。
+  - 普通行情只应递增 `dataRevision`。
+
+- 暗黑模式文字不可见：
+  - 中性文本颜色应传空字符串 `''`，让主题兜底。
+  - 不要把中性文字硬编码成亮色主题黑色。
+
+- 最新价线不显示：
+  - 检查是否调用 `DataView.SetLineData(latestPrice)`。
+  - 空字符串或非数字最新价会把 position 设为 `-1`，Canvas 会跳过绘制。
+
+- 写入 delta 后没有刷新：
+  - `QuoteTableDeltaAdapter` 只写数据，不递增 `dataRevision`。
+  - 业务需要在一批写入完成后递增一次 `dataRevision`。
+
+## 9. 本轮 review 结论
+
+本轮针对 Canvas 绘制模式做了以下防御性修复和文档同步：
+
+- `DataView.updateByItem(...)` 增加负数行列、缺失行和不支持 side 的校验，避免越界访问。
+- `QuoteTableDeltaAdapter.applyCellDelta(...)` 改用 `DataView.hasRow(...)`，避免 rows 与 data 短暂不同步时写入 undefined 行。
+- `DataView.SetLineData(...)` 对空/非法最新价使用 position `-1`，Canvas 不再绘制空最新价线。
+- `TCanvasDataAdapter` 的占位单元格使用空颜色，缺失数据在明暗模式下都走主题兜底。
+- 接入文档中的列设置回调名同步为当前接口 `onSettingClick`。
