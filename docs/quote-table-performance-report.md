@@ -2525,3 +2525,503 @@ autoDegrade = true
   - 滑动刷新关。
   - 强制整表刷新关。
   - LIVE 探针关。
+- 切换到 D Canvas 时，自动打开“只刷可见”，避免误回到旧测试口径。
+- 增加三个快捷档位：
+  - `业务默认`：20Hz + 1/4 表 + 100ms flush。
+  - `偏高压力`：20Hz + 半表 + 100ms flush。
+  - `极限降级`：20Hz + 整表 + 200ms flush。
+- 三个快捷档位都固定为 D Canvas、B 调度合并、只刷可见、滑动刷新关、强制整表刷新关、LIVE 探针关。
+
+验证目标：
+
+- 打开页面无需手动切换即可跑业务默认压测。
+- 点击三个快捷档位后，顶部配置摘要与按钮状态一致。
+- 快捷档位切换时如正在运行，应自动重启 feed 并按新场景统计。
+
+## 2026-05-21 快捷档位复测
+
+测试入口：
+
+- `业务默认`
+- `偏高压力`
+- `极限降级`
+
+共同配置：
+
+```text
+D Canvas
+B 调度合并
+只刷可见
+滑动刷新关
+强制整表刷新关
+LIVE 探针关
+```
+
+### 1. 业务默认：20Hz + 1/4 表 + 100ms flush
+
+```json
+{
+  "scenarioId": "rows100_cols20_20hz_quartertable",
+  "variantId": "D_canvas",
+  "elapsedMs": 20638,
+  "quoteUpdatesPerSecond": 19964,
+  "uiAppliedPerSecond": 19964,
+  "uiPaintedPerSecond": 982,
+  "flushPerSecond": 6,
+  "flushedCellsPerSecond": 982,
+  "maxFlushCells": 190,
+  "avgFlushCostMs": 1.3287363773634453,
+  "maxFlushCostMs": 4.672119140625,
+  "canvasDrawPerSecond": 34,
+  "avgCanvasDrawCostMs": 3.9357163783482143,
+  "maxCanvasDrawCostMs": 15.130859375,
+  "measuredFrequencyHz": 20,
+  "targetFrequencyHz": 20,
+  "frequencyDriftPercent": 0,
+  "frameP50Ms": 8.305018000304699,
+  "frameP95Ms": 8.306144999340177,
+  "frameP99Ms": 8.30629999935627,
+  "maxFrameMs": 41.52652399986982,
+  "health": "正常"
+}
+```
+
+结论：
+
+- 业务默认档位表现很好。
+- P95 / P99 约 8.31ms，明显优于 16.7ms 帧预算。
+- flush 和 Canvas draw 成本都低，适合作为默认测试入口。
+
+### 2. 偏高压力：20Hz + 半表 + 100ms flush
+
+```json
+{
+  "scenarioId": "rows100_cols20_20hz_halftable",
+  "variantId": "D_canvas",
+  "elapsedMs": 13471,
+  "quoteUpdatesPerSecond": 39937,
+  "uiAppliedPerSecond": 39937,
+  "uiPaintedPerSecond": 1973,
+  "flushPerSecond": 6,
+  "flushedCellsPerSecond": 1973,
+  "maxFlushCells": 380,
+  "avgFlushCostMs": 1.8082339638157894,
+  "maxFlushCostMs": 2.906494140625,
+  "canvasDrawPerSecond": 32,
+  "avgCanvasDrawCostMs": 3.4891642999211583,
+  "maxCanvasDrawCostMs": 39.025390625,
+  "measuredFrequencyHz": 20,
+  "targetFrequencyHz": 20,
+  "frequencyDriftPercent": 0,
+  "frameP50Ms": 8.304214999079704,
+  "frameP95Ms": 8.30579200014472,
+  "frameP99Ms": 16.609277999028563,
+  "maxFrameMs": 33.21742199920118,
+  "health": "正常"
+}
+```
+
+结论：
+
+- 偏高压力档位仍达标。
+- P95 约 8.31ms，P99 约 16.61ms。
+- `maxCanvasDrawCostMs` 有 39ms 尖刺，但未影响 P95；后续长时间测试继续观察尖刺频率。
+
+### 3. 极限降级：20Hz + 整表 + 200ms flush
+
+```json
+{
+  "scenarioId": "rows100_cols20_20hz_fulltable",
+  "variantId": "D_canvas",
+  "elapsedMs": 25952,
+  "quoteUpdatesPerSecond": 78298,
+  "uiAppliedPerSecond": 78298,
+  "uiPaintedPerSecond": 1313,
+  "flushPerSecond": 2,
+  "flushedCellsPerSecond": 1313,
+  "maxFlushCells": 760,
+  "avgFlushCostMs": 3.4472059461805555,
+  "maxFlushCostMs": 6.293212890625,
+  "canvasDrawPerSecond": 32,
+  "avgCanvasDrawCostMs": 3.1117786887163175,
+  "maxCanvasDrawCostMs": 4.973876953125,
+  "measuredFrequencyHz": 20,
+  "targetFrequencyHz": 20,
+  "frequencyDriftPercent": 0,
+  "frameP50Ms": 8.305485000833869,
+  "frameP95Ms": 24.91173900105059,
+  "frameP99Ms": 33.21428699977696,
+  "maxFrameMs": 66.42970299907029,
+  "health": "正常"
+}
+```
+
+结论：
+
+- 极限降级档 health 正常，但 P95 约 24.91ms，仍超过 22ms 体验线。
+- 200ms flush 把 `uiPaintedPerSecond` 降到约 1313，但整表输入压力仍会影响主线程节奏。
+- 该档位用于验证极限边界和降级行为，不作为日常默认目标。
+
+### 本轮结论
+
+- `业务默认` 可以作为后续默认压测入口。
+- `偏高压力` 可以作为主要回归压力档。
+- `极限降级` 只能作为边界档；如果真实业务接近整表变化，应继续拆分高频输入、重点列刷新或进一步降低滑动中刷新优先级。
+
+## 2026-05-21 阶段总结与下一阶段开启
+
+阶段 4 结论：
+
+- 最终选定 `D_canvas` 视口级 Canvas 作为高性能路线。
+- 不继续推进 RowCanvas / BuilderNode 双原型，当前视口级 Canvas 已满足业务默认和偏高压力档。
+- 默认业务配置：
+
+```text
+renderMode = viewportCanvas
+frequencyHz = 20
+distribution = quarterTable
+defaultFlushIntervalMs = 100
+visibleOnly = true
+refreshWhileScrolling = false
+forceFullRefresh = false
+visualProbe = false
+```
+
+已验证结果：
+
+- 业务默认：`20Hz + 1/4 表 + 100ms flush`，P95 约 8.31ms。
+- 偏高压力：`20Hz + 半表 + 100ms flush`，P95 约 8.31ms。
+- 极限降级：`20Hz + 整表 + 200ms flush`，P95 约 24.91ms，仅作为边界和降级测试。
+
+下一阶段：业务组件化接入。
+
+目标：
+
+- 将 entry 压测原型提取为可复用业务组件。
+- 接入真实期货 / 期权行情 delta，而不是 mock 整表数据。
+- 保留 `PerfTest` 作为回归压测入口。
+
+首批任务：
+
+- 定义 `QuoteTablePerfConfig` 和默认配置。
+- 定义真实行情 delta 输入接口，只提交变动 cell。
+- 将行权价、Call / Put 列定义、最新价线映射从测试数据改为业务入参。
+- 将点击 `Info` 测试跳转替换为业务回调。
+- 将主题、颜色、分区配色、涨跌闪烁收敛为可配置 token。
+- 为真实业务接入后补一轮 `20Hz + 部分变动` 回归报告。
+
+## 2026-05-21 阶段 5：common_sideslipview Canvas 组件起步
+
+本次代码更新：
+
+- 在真实业务组件库 `common_sideslipview` 中新增 `TCanvasComponent`。
+- 新增 `QuoteTablePerfConfig`。
+- 通过 `common_sideslipview/Index.ets` 导出新组件和配置。
+- 未修改现有 `TComponent` 对外签名。
+- 未修改现有 `DataView`、`GestureMonitor` 对外签名。
+
+当前能力：
+
+- 复用现有 `DataView` 数据源。
+- 复用现有 `GestureMonitor` 点击 / 滑动回调。
+- 使用视口级 Canvas 绘制当前可见区域。
+- 支持左右 Call / Put 标题、行权价列、最新价线。
+- 支持横纵向手势、方向锁和惯性。
+- 支持左右展开 / 收起。
+
+接口策略：
+
+- 旧业务继续使用 `TComponent`。
+- 新业务可按需使用 `TCanvasComponent`。
+- 后续真实 delta 输入、业务点击回调、主题 token、自动降级策略继续新增，不破坏旧接口。
+
+验证结果：
+
+- `git diff --check` 通过。
+- ArkTS 编译通过。
+- `PackageHap` 仍因本机 Java Runtime 缺失失败，不是代码语法问题。
+
+## 2026-05-21 阶段 5：样例和 README 补齐
+
+本次代码更新：
+
+- 拆分 Canvas 组件相关文件：
+  - `TCanvasConstants.ets`：Canvas 内部常量和手势方向枚举。
+  - `TCanvasDataAdapter.ets`：DataView 到 Canvas 显示列序的适配。
+  - `QuoteTablePerfConfig.ets`：高性能配置。
+  - `TCanvasComponent.ets`：视口级 Canvas 组件。
+- 新增 `common_sideslipview/README.md`：
+  - 导出能力。
+  - 兼容性约束。
+  - 推荐配置。
+  - Canvas 组件接入示例。
+  - 真实行情更新建议。
+- 新增样例页 `entry/src/main/ets/pages/QuoteTableExample.ets`：
+  - 顶部导航。
+  - 合约概要。
+  - T 型报价表。
+  - 最新价线。
+  - 合约切换栏。
+  - 底部导航。
+- `main_pages.json` 注册 `QuoteTableExample`。
+
+验证结果：
+
+- `git diff --check` 通过。
+- ArkTS 编译通过。
+- `PackageHap` 仍因本机 Java Runtime 缺失失败，不是代码语法问题。
+
+## 2026-05-21 阶段 5：common_sideslipview 文件拆分确认
+
+本次补充：
+
+- 将 `TCanvasComponent` 收敛为组件外壳：
+  - 生命周期。
+  - Canvas 尺寸。
+  - 横纵向手势方向锁。
+  - 惯性滑动。
+  - 左右展开 / 收起状态。
+  - 点击命中和 `GestureMonitor` 透传。
+- 新增 `TCanvasRenderer`：
+  - 只负责 Canvas 绘制。
+  - 绘制表头、可见行、四分区背景、行权价列、最新价线。
+  - 不修改组件状态，避免渲染逻辑和交互逻辑混在一个大文件中。
+- 新增 `TCanvasRenderState`：
+  - 作为组件状态到渲染器的只读快照。
+- 保留旧组件 `TComponent`，不改旧接口。
+
+当前文件职责：
+
+```text
+common_sideslipview/Index.ets
+  导出旧组件、新 Canvas 组件和性能配置。
+
+common_sideslipview/src/main/ets/components/t_component/canvas/QuoteTablePerfConfig.ets
+  高频行情渲染配置。
+
+common_sideslipview/src/main/ets/components/t_component/canvas/TCanvasConstants.ets
+  Canvas 常量和手势方向枚举。
+
+common_sideslipview/src/main/ets/components/t_component/canvas/TCanvasDataAdapter.ets
+  DataView 到 Canvas 左右列显示顺序的适配。
+
+common_sideslipview/src/main/ets/components/t_component/canvas/TCanvasRenderer.ets
+  纯绘制逻辑。
+
+common_sideslipview/src/main/ets/components/t_component/canvas/TCanvasComponent.ets
+  ArkUI 组件、手势、动画和点击透传。
+```
+
+验证结果：
+
+- `git diff --check` 通过。
+- ArkTS 编译通过。
+- `PackageHap` 仍因本机 Java Runtime 缺失失败，不是代码语法问题。
+
+## 2026-05-21 阶段 5：样例页视觉微调
+
+本次代码更新只在 `entry/src/main/ets/pages/QuoteTableExample.ets`，未改 `common_sideslipview` 组件库对外接口。
+
+- 顶部加 28vp 安全区占位，避免主导航贴状态栏。
+- 主导航数据化为 `TopNavItem[]`，期权 tab 用 22 号粗体高亮，其他用 16 号灰字。
+- 右上 ○ ◇ 替换为圆形底色容器 + 🔍 ☰ 字符占位，避免裸字符视觉突兀。
+- 二级 Tab 改为 `SubTabItem[]`，选中态在文字下方加 22vp 蓝色下划条，提示当前页签。
+- 合约摘要 ▼ 单独拆出小灰色三角，标的 / 沪金2606 / 主 字号缩到 18 / 11，整体高度从 34 降到 28，更接近真实摘要密度。
+- 合约摘要价格列去掉硬编码宽度，整行改为 `layoutWeight 11 : 13`，右侧三组指标用 `MetricRow` 统一渲染，标签灰字、值右对齐，行高 20。
+- 合约切换栏改为 `ContractTabItem[]`，激活项浅蓝底，普通项白底 + 0.5 灰边，并把主合约 badge 抽出独立 `Text`，避免和合约号挤在一起。整条改为 44vp 高度，并上下加 0.5 分割线。
+- 底部主导航改为 `BottomNavItem[]` 图标 + 文字两行，激活项用品牌蓝，底色白，顶部加 0.5 分割线。
+
+验证结果：
+
+- `git diff --check` 通过。
+- ArkTS 编译通过，仅保留 `EntryAbility.ets:9` 历史 warn。
+- `PackageHap` 仍因本机 Java Runtime 缺失失败，与代码无关。
+
+## 2026-05-21 阶段 5：样例页点击跳转链路
+
+本次代码更新：
+
+- 新增 `entry/src/main/ets/pages/QuoteDetail.ets`，作为期权报价详情样例。
+- 详情页通过 `Router.getParams()` 接收 `contractCode / contractName / side / strike / livePrice`。
+- `QuoteTableExample` 把原本只 `console.info` 的点击日志，改为通过 `Router.pushUrl` 跳转到详情页，并附带当前合约与最新价。
+- 路由参数中 `side` 使用 `DATA_POS` 字符串名（`LEFT / RIGHT / CENTER`），方便业务侧直接判断点击侧别。
+- `main_pages.json` 注册 `pages/QuoteDetail`。
+- `common_sideslipview/README.md` 补充「点击跳转链路」章节，列出回调参数和样例详情页路径，便于业务接入。
+
+未改 `common_sideslipview` 对外接口。`TCanvasComponent` 的 `GestureMonitor.onClick(row, side, value)` 签名保持不变。后续如需 col 维度细粒度跳转，可在 `TCanvasComponent` 上新增 API，不影响现有业务。
+
+验证结果：
+
+- `git diff --check` 通过。
+- ArkTS 编译通过，仅保留 `EntryAbility.ets:9` 历史 warn。
+- `PackageHap` 仍因本机 Java Runtime 缺失失败，与代码无关。
+
+## 2026-05-21 阶段 5：样例页文件拆分
+
+按「文件不要太大，能拆则拆」原则，把原本接近 500 行的样例页拆开：
+
+- `entry/src/main/ets/pages/QuoteTableExample.ets`：141 行，只保留状态、点击跳转、行情刷新和组装。
+- `entry/src/main/ets/pages/quote_example/QuoteExampleModels.ets`：60 行，纯数据模型（TopNavItem / SubTabItem / ContractTabItem / BottomNavItem）。
+- `entry/src/main/ets/pages/quote_example/QuoteTopBar.ets`：101 行，顶部安全区 + 主导航 + 二级 Tab 复合组件。
+- `entry/src/main/ets/pages/quote_example/QuoteContractSummary.ets`：109 行，合约概要 + 右侧指标网格。
+- `entry/src/main/ets/pages/quote_example/QuoteContractTabs.ets`：48 行，合约切换栏。
+- `entry/src/main/ets/pages/quote_example/QuoteBottomTabs.ets`：35 行，底部主导航。
+- `entry/src/main/ets/pages/quote_example/QuoteMockData.ets`：100 行，初始数据构造和随机刷新逻辑。
+
+所有子组件都是 `@Component`，由主页面通过普通字段或 `@Prop` 传入展示数据。`@Prop livePrice` 让合约概要随主页面 `@State livePrice` 自动同步。
+
+接口和路由约束：
+
+- `common_sideslipview` 对外接口未变。
+- 样例页和 QuoteDetail 的路由参数结构未变。
+- `main_pages.json` 未变。
+
+验证结果：
+
+- `git diff --check` 通过。
+- ArkTS 编译通过，仅保留 `EntryAbility.ets:9` 历史 warn。
+- `PackageHap` 仍因本机 Java Runtime 缺失失败，与代码无关。
+
+## 2026-05-21 阶段 5：指标级点击回调
+
+本次代码更新：
+
+- `common_sideslipview` 的 `TCanvasComponent` 新增 `onCellClick(row, side, col, value)` 回调。
+- 保留 `GestureMonitor.onClick(row, side, value)` 原签名和原语义，旧回调继续返回该行中间行权价文本。
+- Canvas 点击命中逻辑新增左右两侧真实列索引识别；点击中间行权价列时 `col = -1`。
+- `onCellClick` 的 `value` 返回点击单元格自身文本，方便业务侧按指标级别跳转或埋点。
+- `QuoteTableExample` 改为使用 `onCellClick` 拼装详情页路由参数。
+- `QuoteDetail` 新增 `indicatorName / cellValue` 展示，样例页可验证指标名和值透传。
+- `common_sideslipview/README.md` 更新 Canvas 接入示例和点击跳转链路说明。
+
+兼容性说明：
+
+- 未修改 `GestureMonitor` 对外接口。
+- 未修改 `DataView` 对外接口。
+- 新能力作为 `TCanvasComponent` 增量 API 提供，旧业务不传 `onCellClick` 时行为保持兼容。
+
+验证结果：
+
+- `git diff --check` 通过。
+- ArkTS 编译通过，仅保留 `EntryAbility.ets:9` 历史 warn。
+- `PackageHap` 仍因本机 Java Runtime 缺失失败，与代码无关。
+
+## 2026-05-21 阶段 5：Canvas 主题 token 拆分
+
+本次代码更新：
+
+- 新增 `QuoteTableThemeTokens`，集中管理 Canvas 主题色。
+- `QuoteTablePerfConfig` 新增 `themeTokens` 字段，业务侧可直接覆盖默认 token。
+- `TCanvasRenderer` 移除颜色常量依赖，改为从 `config.themeTokens` 读取：
+  - Call / Put 标题色。
+  - 最新价线和标签底色。
+  - 行权价列底色。
+  - 表头底色。
+  - 分割线颜色。
+  - 表头文字色和切换文字色。
+  - 四象限兜底色。
+- `TCanvasConstants` 只保留尺寸、字号、手势和动画常量。
+- `common_sideslipview/Index.ets` 导出 `QuoteTableThemeTokens`。
+- `QuoteTableExample` 增加主题覆盖示例：最新价线使用品牌蓝，表头使用浅灰底。
+- `common_sideslipview/README.md` 补充主题色配置章节。
+
+兼容性说明：
+
+- 未修改 `TComponent`、`DataView`、`GestureMonitor` 对外接口。
+- `QuoteTablePerfConfig` 仅新增字段，旧业务不配置时仍使用默认主题。
+- 四象限色仍兼容 `DataView.SetQuadrantColor`，token 四象限字段作为无法解析资源色时的兜底。
+
+验证结果：
+
+- `git diff --check` 通过。
+- ArkTS 编译通过，仅保留 `EntryAbility.ets:9` 历史 warn。
+- `PackageHap` 仍因本机 Java Runtime 缺失失败，与代码无关。
+
+## 2026-05-21 阶段 5：增量行情接入适配器
+
+需求调整：
+
+- 不做涨跌闪烁。
+- 服务端返回数据直接包含展示颜色，组件按返回颜色显示。
+
+本次代码更新：
+
+- 新增 `QuoteTableCellDelta`，用于承接服务端返回的单格行情：
+  - `row`：行索引。
+  - `side`：`DATA_POS.LEFT / RIGHT / CENTER`。
+  - `col`：指标列索引，`CENTER` 时忽略。
+  - `value`：展示文本。
+  - `color`：展示颜色。
+- 新增 `QuoteTableDeltaAdapter`：
+  - `applyCellDelta(dataView, delta)`：写入单个 delta。
+  - `applyCellDeltas(dataView, deltas)`：批量写入 delta，返回成功写入数量。
+  - `applyLatestPrice(dataView, latestPrice)`：写入最新价并刷新最新价线位置。
+- `common_sideslipview/Index.ets` 导出 `QuoteTableCellDelta / QuoteTableDeltaAdapter`。
+- `QuoteMockData.applyRandomUpdates` 改为先生成 `QuoteTableCellDelta[]`，再通过 `QuoteTableDeltaAdapter` 批量写入，贴近真实接口返回颜色的接入方式。
+- `common_sideslipview/README.md` 新增“增量行情接入”章节，说明服务端返回颜色的推荐结构和落表方式。
+
+接口策略：
+
+- 不修改 `DataView.updateByItem`。
+- 不修改 `TCanvasComponent` 对外必填参数。
+- `QuoteTableDeltaAdapter` 不负责网络请求、节流或 `dataRevision` 递增，业务侧仍可复用自己的请求合并和刷新节奏。
+
+验证结果：
+
+- `git diff --check` 通过。
+- ArkTS 编译通过，仅保留 `EntryAbility.ets:9` 历史 warn。
+- `PackageHap` 仍因本机 Java Runtime 缺失失败，与代码无关。
+
+## 2026-05-21 阶段 5：真机截图视觉校准
+
+基于真机截图反馈，本次做样例页视觉微调：
+
+- 顶部主导航：
+  - 缩小右侧圆形图标到 28vp。
+  - 主导航间距从 18vp 调整到 15vp。
+  - 选中态“期权”字号从 22 调整到 21。
+  - 主导航区域增加裁剪，避免右侧图标挤压“套利”时发生视觉重叠。
+- 合约概要右侧指标：
+  - 指标标签和值改为固定宽度布局。
+  - 字号从 13 调整到 12。
+  - 行高从 20 调整到 18。
+  - 解决 `1002.78` 和 `2.14%` 在窄宽度下断行的问题。
+- 详情页标题栏：
+  - 左右各保留 72vp 固定占位。
+  - 标题使用中间 `layoutWeight(1)` 居中，避免“返回”和“合约详情”贴在一起。
+- 详情页样例合约代码从 `IO2606` 调整为更贴近沪金业务语义的 `AU2606`。
+
+本次未修改 `common_sideslipview` Canvas 核心组件和增量行情接口，仅调整 entry 样例页视觉。
+
+验证结果：
+
+- `git diff --check` 通过。
+- ArkTS 编译通过，仅保留 `EntryAbility.ets:9` 历史 warn。
+- `PackageHap` 仍因本机 Java Runtime 缺失失败，与代码无关。
+
+## 2026-05-21 阶段 5：表头切换回调和滚动手感调整
+
+基于真机交互反馈，本次更新：
+
+- `TCanvasComponent` 新增 `onHeaderSwitchClick()` 回调。
+  - 点击标题条中间“切换”区域时触发。
+  - 业务侧可用于打开列设置、合约切换或自定义配置面板。
+  - 左右 Call / Put 标题点击仍保留展开 / 收起行为。
+- Call / Put 标题箭头根据展开状态变化：
+  - 普通状态：`看涨期权Call >>`、`<< 看跌期权put`。
+  - 看涨展开后：`<< 看涨期权Call`，提示再次点击可收起。
+  - 看跌展开后：`看跌期权put >>`，提示再次点击可收起。
+- `QuoteTablePerfConfig` 新增滚动灵敏度：
+  - `verticalScrollSensitivity` 默认 `1.18`，改善纵向滑动阻力偏强的问题。
+  - `horizontalScrollSensitivity` 默认 `1.0`，保留横向原手感。
+- `QuoteTableExample` 增加 `onHeaderSwitchClick` 样例回调。
+- `common_sideslipview/README.md` 补充表头切换回调和滚动手感配置说明。
+
+兼容性说明：
+
+- 未修改 `GestureMonitor`、`DataView`、`TComponent` 对外接口。
+- `onHeaderSwitchClick` 是可选新增回调，旧业务不传时无行为变化。
+- 滚动灵敏度是 `QuoteTablePerfConfig` 新增字段，业务可按真机手感继续调参。
+
+验证结果：
+
