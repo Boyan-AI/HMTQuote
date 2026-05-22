@@ -1,0 +1,71 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0f172a"/>
+      <stop offset="1" stop-color="#111827"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#22d3ee"/>
+      <stop offset="1" stop-color="#34d399"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="18" stdDeviation="18" flood-color="#000000" flood-opacity="0.35"/>
+    </filter>
+    <marker id="arrow" markerWidth="14" markerHeight="14" refX="9" refY="5" orient="auto">
+      <path d="M0,0 L10,5 L0,10 Z" fill="#67e8f9"/>
+    </marker>
+  </defs>
+  <rect width="1600" height="900" fill="url(#bg)"/>
+  <text x="80" y="96" fill="#f8fafc" font-size="48" font-family="Arial, 'PingFang SC', sans-serif" font-weight="700">AI 驱动的 T 型报价优化研发闭环</text>
+  <text x="82" y="142" fill="#94a3b8" font-size="24" font-family="Arial, 'PingFang SC', sans-serif">把 AI 用在工程全过程：分析、推演、实施、验证、沉淀，而不是只让 AI 写代码</text>
+
+  <circle cx="800" cy="480" r="142" fill="#0b1220" stroke="url(#accent)" stroke-width="5" filter="url(#shadow)"/>
+  <text x="800" y="456" text-anchor="middle" fill="#e0f2fe" font-size="34" font-family="Arial, 'PingFang SC', sans-serif" font-weight="700">人机协同</text>
+  <text x="800" y="502" text-anchor="middle" fill="#a7f3d0" font-size="30" font-family="Arial, 'PingFang SC', sans-serif" font-weight="700">工程闭环</text>
+  <text x="800" y="548" text-anchor="middle" fill="#cbd5e1" font-size="21" font-family="Arial, 'PingFang SC', sans-serif">开发人员负责判断和取舍</text>
+
+  <g font-family="Arial, 'PingFang SC', sans-serif" filter="url(#shadow)">
+    <g transform="translate(95 250)">
+      <rect width="320" height="132" rx="16" fill="#111f34" stroke="#1e3a5f"/>
+      <text x="28" y="48" fill="#67e8f9" font-size="26" font-weight="700">1. 上下文检索</text>
+      <text x="28" y="86" fill="#cbd5e1" font-size="20">读取提交、文档、组件边界</text>
+    </g>
+    <g transform="translate(505 146)">
+      <rect width="320" height="132" rx="16" fill="#11251f" stroke="#1f5f46"/>
+      <text x="28" y="48" fill="#86efac" font-size="26" font-weight="700">2. 瓶颈拆解</text>
+      <text x="28" y="86" fill="#cbd5e1" font-size="20">定位 per-cell 与响应式链路</text>
+    </g>
+    <g transform="translate(930 146)">
+      <rect width="320" height="132" rx="16" fill="#182033" stroke="#31518a"/>
+      <text x="28" y="48" fill="#93c5fd" font-size="26" font-weight="700">3. 方案推演</text>
+      <text x="28" y="86" fill="#cbd5e1" font-size="20">A/B/C/D/D1 阶段化验证</text>
+    </g>
+    <g transform="translate(1185 386)">
+      <rect width="320" height="132" rx="16" fill="#2a1f13" stroke="#8a5a1f"/>
+      <text x="28" y="48" fill="#fdba74" font-size="26" font-weight="700">4. 跨文件实施</text>
+      <text x="28" y="86" fill="#cbd5e1" font-size="20">组件、模型、示例、文档同步</text>
+    </g>
+    <g transform="translate(920 640)">
+      <rect width="320" height="132" rx="16" fill="#251730" stroke="#6b348a"/>
+      <text x="28" y="48" fill="#d8b4fe" font-size="26" font-weight="700">5. 验证闭环</text>
+      <text x="28" y="86" fill="#cbd5e1" font-size="20">静态检查、构建、残留扫描</text>
+    </g>
+    <g transform="translate(395 640)">
+      <rect width="320" height="132" rx="16" fill="#151f2a" stroke="#36526c"/>
+      <text x="28" y="48" fill="#bae6fd" font-size="26" font-weight="700">6. 知识沉淀</text>
+      <text x="28" y="86" fill="#cbd5e1" font-size="20">README、架构文档、接入指南</text>
+    </g>
+  </g>
+
+  <g fill="none" stroke="#67e8f9" stroke-width="3" marker-end="url(#arrow)" opacity="0.8">
+    <path d="M415 306 C500 250 565 218 505 212"/>
+    <path d="M825 212 C875 210 905 210 930 212"/>
+    <path d="M1160 278 C1220 320 1255 350 1265 386"/>
+    <path d="M1280 518 C1245 590 1170 628 1100 640"/>
+    <path d="M920 706 C840 740 760 738 715 706"/>
+    <path d="M395 680 C245 630 180 500 245 382"/>
+  </g>
+
+  <rect x="90" y="812" width="1420" height="46" rx="23" fill="#0b1220" stroke="#1f2937"/>
+  <text x="800" y="843" text-anchor="middle" fill="#e5e7eb" font-size="22" font-family="Arial, 'PingFang SC', sans-serif">核心表达：开发人员将 AI 纳入工程流程，加速分析、实施和交付，而不是被动接受代码建议</text>
+</svg>

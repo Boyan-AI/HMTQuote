@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#0b1120"/><stop offset="1" stop-color="#172033"/></linearGradient>
+  </defs>
+  <rect width="1600" height="900" fill="url(#bg)"/>
+  <text x="80" y="92" fill="#f8fafc" font-size="48" font-family="Arial, 'PingFang SC', sans-serif" font-weight="700">一页式总结：AI 辅助下的 T 型报价优化</text>
+  <text x="82" y="140" fill="#94a3b8" font-size="24" font-family="Arial, 'PingFang SC', sans-serif">AI 工程协作能力：上下文组织、问题拆解、风险控制、结果验证、知识沉淀</text>
+
+  <g font-family="Arial, 'PingFang SC', sans-serif">
+    <rect x="85" y="210" width="450" height="520" rx="18" fill="#0f172a" stroke="#22d3ee"/>
+    <text x="125" y="270" fill="#67e8f9" font-size="32" font-weight="700">AI 提效方式</text>
+    <text x="125" y="335" fill="#e5e7eb" font-size="23">1. 快速读取代码和文档上下文</text>
+    <text x="125" y="390" fill="#e5e7eb" font-size="23">2. 拆解性能瓶颈和验证假设</text>
+    <text x="125" y="445" fill="#e5e7eb" font-size="23">3. 对比多阶段技术方案</text>
+    <text x="125" y="500" fill="#e5e7eb" font-size="23">4. 辅助跨文件一致性改造</text>
+    <text x="125" y="555" fill="#e5e7eb" font-size="23">5. 组织检查、构建和文档沉淀</text>
+    <text x="125" y="640" fill="#a5f3fc" font-size="25" font-weight="700">从“问答式 AI”升级为“工程协作式 AI”</text>
+
+    <rect x="575" y="210" width="450" height="520" rx="18" fill="#0f172a" stroke="#34d399"/>
+    <text x="615" y="270" fill="#86efac" font-size="32" font-weight="700">技术成果</text>
+    <text x="615" y="335" fill="#e5e7eb" font-size="23">1. Canvas-only 高性能组件</text>
+    <text x="615" y="390" fill="#e5e7eb" font-size="23">2. 高频链路去响应式</text>
+    <text x="615" y="445" fill="#e5e7eb" font-size="23">3. 显式 revision 刷新协议</text>
+    <text x="615" y="500" fill="#e5e7eb" font-size="23">4. Delta Adapter 真实行情接入</text>
+    <text x="615" y="555" fill="#e5e7eb" font-size="23">5. 排序、主题、点击、滚动能力补齐</text>
+    <text x="615" y="640" fill="#bbf7d0" font-size="25" font-weight="700">从组件级刷新升级为视口级绘制</text>
+
+    <rect x="1065" y="210" width="450" height="520" rx="18" fill="#0f172a" stroke="#fdba74"/>
+    <text x="1105" y="270" fill="#fdba74" font-size="32" font-weight="700">交付价值</text>
+    <text x="1105" y="335" fill="#e5e7eb" font-size="23">1. 平均 flush 成本约 14ms → 1ms</text>
+    <text x="1105" y="390" fill="#e5e7eb" font-size="23">2. draw 尖刺约 83ms → 3.45ms</text>
+    <text x="1105" y="445" fill="#e5e7eb" font-size="23">3. 推荐场景 P95 接近帧预算</text>
+    <text x="1105" y="500" fill="#e5e7eb" font-size="23">4. 接入协议清晰，维护成本下降</text>
+    <text x="1105" y="555" fill="#e5e7eb" font-size="23">5. README / 架构 / 接入文档同步</text>
+    <text x="1105" y="640" fill="#fed7aa" font-size="25" font-weight="700">性能、体验、可维护性同步提升</text>
+  </g>
+
+  <rect x="155" y="790" width="1290" height="58" rx="29" fill="#0b1220" stroke="#334155"/>
+  <text x="800" y="827" text-anchor="middle" fill="#f8fafc" font-size="26" font-family="Arial, 'PingFang SC', sans-serif" font-weight="700">对外表达重点：开发人员具备将 AI 转化为工程生产力的能力，并以可验证结果证明收益</text>
+</svg>

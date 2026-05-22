@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900">
+  <rect width="1600" height="900" fill="#0f172a"/>
+  <text x="80" y="90" fill="#f8fafc" font-size="46" font-family="Arial, 'PingFang SC', sans-serif" font-weight="700">有图有真相：关键性能收益</text>
+  <text x="82" y="136" fill="#94a3b8" font-size="24" font-family="Arial, 'PingFang SC', sans-serif">基于阶段性性能总结：刷新成本和绘制尖刺均明显下降</text>
+
+  <g font-family="Arial, 'PingFang SC', sans-serif">
+    <rect x="90" y="205" width="680" height="560" rx="18" fill="#111827" stroke="#334155"/>
+    <text x="130" y="266" fill="#e5e7eb" font-size="30" font-weight="700">平均 Flush 成本</text>
+    <line x1="160" y1="670" x2="690" y2="670" stroke="#475569" stroke-width="2"/>
+    <line x1="160" y1="330" x2="160" y2="670" stroke="#475569" stroke-width="2"/>
+    <rect x="260" y="372" width="110" height="298" rx="8" fill="#ef4444"/>
+    <rect x="510" y="649" width="110" height="21" rx="8" fill="#34d399"/>
+    <text x="315" y="350" text-anchor="middle" fill="#fecaca" font-size="24" font-weight="700">约 14ms</text>
+    <text x="565" y="628" text-anchor="middle" fill="#bbf7d0" font-size="24" font-weight="700">约 1ms</text>
+    <text x="315" y="715" text-anchor="middle" fill="#cbd5e1" font-size="22">ArkUI 组件表格</text>
+    <text x="565" y="715" text-anchor="middle" fill="#cbd5e1" font-size="22">Canvas 表格</text>
+    <text x="430" y="790" text-anchor="middle" fill="#67e8f9" font-size="25" font-weight="700">刷新成本从接近一帧预算下降到约 1ms</text>
+
+    <rect x="830" y="205" width="680" height="560" rx="18" fill="#111827" stroke="#334155"/>
+    <text x="870" y="266" fill="#e5e7eb" font-size="30" font-weight="700">Canvas Draw 最大耗时</text>
+    <line x1="900" y1="670" x2="1430" y2="670" stroke="#475569" stroke-width="2"/>
+    <line x1="900" y1="330" x2="900" y2="670" stroke="#475569" stroke-width="2"/>
+    <rect x="1000" y="338" width="110" height="332" rx="8" fill="#f97316"/>
+    <rect x="1250" y="656" width="110" height="14" rx="7" fill="#22d3ee"/>
+    <text x="1055" y="316" text-anchor="middle" fill="#fed7aa" font-size="24" font-weight="700">83ms</text>
+    <text x="1305" y="636" text-anchor="middle" fill="#a5f3fc" font-size="24" font-weight="700">3.45ms</text>
+    <text x="1055" y="715" text-anchor="middle" fill="#cbd5e1" font-size="22">早期 Canvas</text>
+    <text x="1305" y="715" text-anchor="middle" fill="#cbd5e1" font-size="22">视口级 + 合并重绘</text>
+    <text x="1170" y="790" text-anchor="middle" fill="#67e8f9" font-size="25" font-weight="700">绘制范围收敛后，尖刺成本显著降低</text>
+  </g>
+  <text x="800" y="846" text-anchor="middle" fill="#e5e7eb" font-size="24" font-family="Arial, 'PingFang SC', sans-serif">推荐工作点：20Hz + 部分变动 + 100ms flush + 只刷可见 + 滚动中暂停 flush</text>
+</svg>
