@@ -2025,3 +2025,503 @@ B 调度合并
   "uiPaintedPerSecond": 9436,
   "flushPerSecond": 9,
   "flushedCellsPerSecond": 9436,
+  "maxFlushCells": 1000,
+  "avgFlushCostMs": 1.01586181640625,
+  "maxFlushCostMs": 7.60107421875,
+  "canvasDrawPerSecond": 40,
+  "avgCanvasDrawCostMs": 0.6962600008856873,
+  "maxCanvasDrawCostMs": 2.0830078125,
+  "measuredFrequencyHz": 10,
+  "targetFrequencyHz": 10,
+  "frameP50Ms": 15.443681001663208,
+  "frameP95Ms": 15.447650000452995,
+  "frameP99Ms": 15.450194001197815,
+  "maxFrameMs": 46.2954120002687,
+  "health": "正常"
+}
+```
+
+结论：
+
+- P95 稳定在 16.7ms 内。
+- 平均 Canvas draw 约 0.70ms。
+- 平均 flush 约 1.02ms。
+- 满足当前 100 行、每侧 20 列、10Hz、1/4 表刷新目标。
+
+#### 2. 10Hz，整表刷新，D_canvas 视口级 Canvas
+
+```json
+{
+  "scenarioId": "rows100_cols20_10hz_fulltable",
+  "variantId": "D_canvas",
+  "elapsedMs": 17448,
+  "quoteUpdatesPerSecond": 39890,
+  "uiAppliedPerSecond": 39890,
+  "uiPaintedPerSecond": 38973,
+  "flushPerSecond": 10,
+  "flushedCellsPerSecond": 38973,
+  "maxFlushCells": 4000,
+  "avgFlushCostMs": 4.068704044117647,
+  "maxFlushCostMs": 17.209228515625,
+  "avgCanvasDrawCostMs": 0.7227049482629654,
+  "maxCanvasDrawCostMs": 2.07568359375,
+  "measuredFrequencyHz": 10,
+  "targetFrequencyHz": 10,
+  "frameP95Ms": 15.449250999838114,
+  "frameP99Ms": 15.450165998190641,
+  "maxFrameMs": 46.33880099654198,
+  "health": "正常"
+}
+```
+
+结论：
+
+- 即使整表数据输入达到约 4 万 cell/s，视口级 Canvas 的 P95 仍在 16.7ms 内。
+- flush 成本随输入量上升，但绘制成本仍稳定。
+- 这证明核心收益来自“数据写缓存 + Canvas 视口绘制”，不是来自绘制整表。
+
+#### 3. 100Hz，整表刷新，D_canvas 视口级 Canvas
+
+```json
+{
+  "scenarioId": "rows100_cols20_100hz_fulltable",
+  "variantId": "D_canvas",
+  "elapsedMs": 30750,
+  "quoteUpdatesPerSecond": 362799,
+  "uiAppliedPerSecond": 362799,
+  "uiPaintedPerSecond": 37594,
+  "flushPerSecond": 9,
+  "flushedCellsPerSecond": 37594,
+  "maxFlushCells": 4000,
+  "avgFlushCostMs": 3.5532285696907437,
+  "maxFlushCostMs": 12.288330078125,
+  "avgCanvasDrawCostMs": 0.6984116762016076,
+  "maxCanvasDrawCostMs": 2.036865234375,
+  "measuredFrequencyHz": 91,
+  "targetFrequencyHz": 100,
+  "frequencyDriftPercent": 9,
+  "frameP95Ms": 15.449248000979424,
+  "frameP99Ms": 30.895780999213457,
+  "maxFrameMs": 61.77800999954343,
+  "health": "正常"
+}
+```
+
+结论：
+
+- 输入压力达到约 36 万 cell/s 时，UI 绘制仍被调度层合并到约 3.8 万 cell/s。
+- P95 仍在 16.7ms 内，说明视口级 Canvas 有明显性能余量。
+- P99 和 max frame 仍需要在真实设备、真实行情接入后继续观察。
+
+### 最优测试结论
+
+当前最优测试组合：
+
+```text
+D_canvas
++ B 调度合并
++ 视口级 Canvas
++ 只刷可见范围
++ flush 默认 100ms
++ 滑动中刷新可配置
+```
+
+验收指标：
+
+- 静止刷新：P95 ≤ 16.7ms。
+- 横向滑动：无明显卡顿，P95 ≤ 22ms。
+- 纵向滑动：无明显卡顿，P95 ≤ 22ms。
+- 高频输入：100Hz 整表输入下 health 保持正常。
+- 滑动中关闭刷新：滑动期间数据暂停变化，结束后立即刷新到最新值。
+- 可见范围刷新：滑动后的新可见区域持续刷新，不停留在初始首屏。
+
+后续真实业务接入时必须再补测：
+
+- 真实期货 / 期权行情格式化成本。
+- 真实列数、真实行数、真实颜色规则。
+- 低端设备和高刷新率设备。
+- 横屏、折叠屏、平板。
+- 多合约快速切换。
+- 长时间运行后的内存、GC、掉帧和热降频。
+
+## 2026-05-21 最优方案复测：只刷可见 + 100ms flush
+
+测试组合：
+
+```text
+D_canvas
++ B 调度合并
++ 视口级 Canvas
++ 只刷可见
++ flush 100ms
++ 视觉探针关
++ 整表刷新关
+```
+
+### 1. 10Hz，1/4 表，滑动刷新开
+
+```json
+{
+  "scenarioId": "rows100_cols20_10hz_quartertable",
+  "variantId": "D_canvas",
+  "elapsedMs": 49451,
+  "quoteUpdatesPerSecond": 9990,
+  "uiAppliedPerSecond": 9990,
+  "uiPaintedPerSecond": 1899,
+  "flushPerSecond": 10,
+  "flushedCellsPerSecond": 1899,
+  "maxFlushCells": 200,
+  "avgFlushCostMs": 1.7315154966632444,
+  "maxFlushCostMs": 8.025634765625,
+  "canvasDrawPerSecond": 25,
+  "avgCanvasDrawCostMs": 6.8419572265625,
+  "maxCanvasDrawCostMs": 32.037353515625,
+  "measuredFrequencyHz": 10,
+  "targetFrequencyHz": 10,
+  "frequencyDriftPercent": 0,
+  "frameP50Ms": 8.315012000501156,
+  "frameP95Ms": 16.61012899968773,
+  "frameP99Ms": 16.63006699923426,
+  "maxFrameMs": 17.060403000563383,
+  "health": "正常"
+}
+```
+
+结论：
+
+- 只刷可见生效：`uiPaintedPerSecond` 从约 1 万级降到约 1900。
+- P95 约 16.61ms，达到 60fps 帧预算。
+- `maxCanvasDrawCostMs` 有 32ms 尖刺，但没有明显拉高 P95 / P99，需要继续观察是否与偶发滑动、GC 或首次绘制有关。
+
+### 2. 10Hz，1/4 表，滑动刷新关
+
+```json
+{
+  "scenarioId": "rows100_cols20_10hz_quartertable",
+  "variantId": "D_canvas",
+  "elapsedMs": 17603,
+  "quoteUpdatesPerSecond": 9941,
+  "uiAppliedPerSecond": 9941,
+  "uiPaintedPerSecond": 726,
+  "flushPerSecond": 4,
+  "flushedCellsPerSecond": 725,
+  "maxFlushCells": 200,
+  "avgFlushCostMs": 1.691016944679054,
+  "maxFlushCostMs": 4.581298828125,
+  "canvasDrawPerSecond": 41,
+  "avgCanvasDrawCostMs": 5.35838493041148,
+  "maxCanvasDrawCostMs": 16.509765625,
+  "measuredFrequencyHz": 10,
+  "targetFrequencyHz": 10,
+  "frequencyDriftPercent": 0,
+  "frameP50Ms": 8.304593000560999,
+  "frameP95Ms": 8.306156000122428,
+  "frameP99Ms": 16.609589000232518,
+  "maxFrameMs": 16.612350000068545,
+  "health": "正常"
+}
+```
+
+结论：
+
+- 滑动刷新关明显降低 UI flush：`flushPerSecond` 约 4，`uiPaintedPerSecond` 约 726。
+- P95 约 8.31ms，滑动体验最稳。
+- 该策略适合作为强滑动优先配置：滑动中暂停 flush，结束后刷新最新缓存值。
+
+### 3. 100Hz，整表，滑动刷新开
+
+```json
+{
+  "scenarioId": "rows100_cols20_100hz_fulltable",
+  "variantId": "D_canvas",
+  "elapsedMs": 31988,
+  "quoteUpdatesPerSecond": 156808,
+  "uiAppliedPerSecond": 156808,
+  "uiPaintedPerSecond": 6851,
+  "flushPerSecond": 9,
+  "flushedCellsPerSecond": 6851,
+  "maxFlushCells": 800,
+  "avgFlushCostMs": 2.5453141837284483,
+  "maxFlushCostMs": 5.058837890625,
+  "canvasDrawPerSecond": 22,
+  "avgCanvasDrawCostMs": 4.373648759257587,
+  "maxCanvasDrawCostMs": 63.576416015625,
+  "measuredFrequencyHz": 39,
+  "targetFrequencyHz": 100,
+  "frequencyDriftPercent": 61,
+  "frameP50Ms": 16.610494999215007,
+  "frameP95Ms": 33.23191799968481,
+  "frameP99Ms": 49.847972999326885,
+  "maxFrameMs": 83.02769900020212,
+  "health": "异常",
+  "healthReason": "实测频率偏差61%>=50%"
+}
+```
+
+结论：
+
+- 100Hz 整表输入下，mock feed 实测只有 39Hz，频率漂移 61%。
+- `flushCost` 不高，平均约 2.55ms，最大约 5.06ms。
+- 主要风险在高频输入和 Canvas draw 尖刺：`maxCanvasDrawCostMs` 达 63.6ms，P95 达 33.2ms。
+- 该场景不适合作为默认实时刷新档，应触发降级策略。
+
+### 4. 100Hz，整表，滑动刷新关
+
+```json
+{
+  "scenarioId": "rows100_cols20_100hz_fulltable",
+  "variantId": "D_canvas",
+  "elapsedMs": 13269,
+  "quoteUpdatesPerSecond": 168216,
+  "uiAppliedPerSecond": 168216,
+  "uiPaintedPerSecond": 4124,
+  "flushPerSecond": 5,
+  "flushedCellsPerSecond": 4124,
+  "maxFlushCells": 760,
+  "avgFlushCostMs": 2.6539815266927085,
+  "maxFlushCostMs": 9.316162109375,
+  "canvasDrawPerSecond": 23,
+  "avgCanvasDrawCostMs": 4.26392707701254,
+  "maxCanvasDrawCostMs": 8.39990234375,
+  "measuredFrequencyHz": 42,
+  "targetFrequencyHz": 100,
+  "frequencyDriftPercent": 58,
+  "frameP50Ms": 16.611278999596834,
+  "frameP95Ms": 33.23479699995369,
+  "frameP99Ms": 49.838103000074625,
+  "maxFrameMs": 74.7209099996835,
+  "health": "异常",
+  "healthReason": "实测频率偏差58%>=50%"
+}
+```
+
+结论：
+
+- 滑动刷新关降低了 `uiPaintedPerSecond` 和 Canvas draw 尖刺，但 P95 仍约 33.2ms。
+- 频率漂移仍超过 50%，说明 100Hz 整表不是当前默认配置的稳定工作点。
+- 该场景应作为压力上限和自动降级验证场景。
+
+### 本轮结论
+
+- 10Hz + 1/4 表 + 只刷可见 + 100ms flush 达标，可以作为默认业务起点。
+- 滑动刷新关能显著改善滑动帧稳定性，建议保留为配置项，低端设备或滑动优先场景默认关闭滑动中刷新。
+- 100Hz + 整表属于极限压力场景，当前结果异常，不能作为默认刷新策略。
+- 100Hz 整表下 `flushCost` 不是主要瓶颈，下一步应重点看：
+  - mock feed 生成是否占用 UI 线程导致实测频率漂移；
+  - Canvas draw 尖刺是否来自文本绘制数量、字体大小、设备刷新率或 GC；
+  - 是否需要高频输入下自动降级到 200ms 或只刷新重点列。
+
+### 推荐默认配置更新
+
+```text
+defaultFlushIntervalMs = 100
+visibleOnly = true
+renderMode = viewportCanvas
+refreshWhileScrolling = false 或按设备分层
+degradedFlushIntervalMs = 200
+autoDegrade = true
+```
+
+自动降级触发建议：
+
+- `frameP95Ms >= 33ms`，降级。
+- `maxCanvasDrawCostMs >= 16ms` 连续出现，降级。
+- `frequencyDriftPercent >= 20%`，降低 mock/行情输入或降级 UI flush。
+- 滑动中优先暂停 flush，而不是继续高频绘制。
+
+## 2026-05-21 业务上限复测：20Hz 只刷可见 + 100ms flush
+
+背景：
+
+- 真实业务监听到的行情推送通常最多约 20 次/秒。
+- 因此 `20Hz` 比 `50Hz / 100Hz` 更接近业务上限。
+- 真实行情通常是部分字段变化，不是每次推送都整表变化。
+- 因此 `20Hz + 整表` 是极限边界测试，不是默认业务目标。
+- 本轮重点验证默认推荐配置在业务上限下是否成立。
+
+测试组合：
+
+```text
+D_canvas
++ B 调度合并
++ 视口级 Canvas
++ 只刷可见
++ flush 100ms
+```
+
+### 1. 20Hz，1/4 表
+
+```json
+{
+  "scenarioId": "rows100_cols20_20hz_quartertable",
+  "variantId": "D_canvas",
+  "elapsedMs": 18985,
+  "quoteUpdatesPerSecond": 19963,
+  "uiAppliedPerSecond": 19963,
+  "uiPaintedPerSecond": 1145,
+  "flushPerSecond": 6,
+  "flushedCellsPerSecond": 1145,
+  "maxFlushCells": 200,
+  "avgFlushCostMs": 1.6514708932522124,
+  "maxFlushCostMs": 4.026123046875,
+  "canvasDrawPerSecond": 32,
+  "avgCanvasDrawCostMs": 5.770370358531096,
+  "maxCanvasDrawCostMs": 20.063232421875,
+  "measuredFrequencyHz": 20,
+  "targetFrequencyHz": 20,
+  "frequencyDriftPercent": 0,
+  "frameP50Ms": 8.305360999889672,
+  "frameP95Ms": 16.608607000671327,
+  "frameP99Ms": 16.615659999661148,
+  "maxFrameMs": 33.230140999890864,
+  "health": "正常"
+}
+```
+
+结论：
+
+- 20Hz 业务上限 + 1/4 表达标。
+- P95 约 16.61ms，满足 60fps 帧预算。
+- `maxCanvasDrawCostMs` 有 20ms 尖刺，但未影响 P95 / P99。
+
+### 2. 20Hz，半表
+
+```json
+{
+  "scenarioId": "rows100_cols20_20hz_halftable",
+  "variantId": "D_canvas",
+  "elapsedMs": 9534,
+  "quoteUpdatesPerSecond": 39858,
+  "uiAppliedPerSecond": 39859,
+  "uiPaintedPerSecond": 1423,
+  "flushPerSecond": 4,
+  "flushedCellsPerSecond": 1422,
+  "maxFlushCells": 400,
+  "avgFlushCostMs": 1.958119419642857,
+  "maxFlushCostMs": 3.021484375,
+  "canvasDrawPerSecond": 41,
+  "avgCanvasDrawCostMs": 4.563578760901163,
+  "maxCanvasDrawCostMs": 25.677978515625,
+  "measuredFrequencyHz": 20,
+  "targetFrequencyHz": 20,
+  "frequencyDriftPercent": 0,
+  "frameP50Ms": 8.30428500007838,
+  "frameP95Ms": 16.60806000046432,
+  "frameP99Ms": 16.609810000285506,
+  "maxFrameMs": 33.21775699965656,
+  "health": "正常"
+}
+```
+
+结论：
+
+- 20Hz 业务上限 + 半表达标。
+- P95 / P99 仍稳定在约 16.61ms。
+- flush 成本很低，最大约 3.02ms。
+- Canvas draw 仍有偶发 25.7ms 尖刺，需要长期运行继续观察。
+
+### 3. 20Hz，整表
+
+```json
+{
+  "scenarioId": "rows100_cols20_20hz_fulltable",
+  "variantId": "D_canvas",
+  "elapsedMs": 15728,
+  "quoteUpdatesPerSecond": 79857,
+  "uiAppliedPerSecond": 79857,
+  "uiPaintedPerSecond": 4280,
+  "flushPerSecond": 6,
+  "flushedCellsPerSecond": 4280,
+  "maxFlushCells": 800,
+  "avgFlushCostMs": 3.080001316713483,
+  "maxFlushCostMs": 5.909912109375,
+  "canvasDrawPerSecond": 29,
+  "avgCanvasDrawCostMs": 4.420937693591685,
+  "maxCanvasDrawCostMs": 14.759765625,
+  "measuredFrequencyHz": 20,
+  "targetFrequencyHz": 20,
+  "frequencyDriftPercent": 0,
+  "frameP50Ms": 8.303933000192046,
+  "frameP95Ms": 24.910025999881327,
+  "frameP99Ms": 24.9134549992159,
+  "maxFrameMs": 33.2164550004527,
+  "health": "正常"
+}
+```
+
+结论：
+
+- 20Hz 整表 health 正常，但 P95 约 24.91ms，超过 22ms 体验线。
+- flush 成本仍可控，平均约 3.08ms，最大约 5.91ms。
+- 该场景瓶颈更像是高输入量下的整体主线程节奏和绘制调度，而不是单次 flush 写入。
+- 20Hz 整表可作为业务压力边界，但不建议滑动中继续高频刷新。
+
+### 本轮结论
+
+- 真实业务上限 20Hz 下，1/4 表和半表均达标。
+- 20Hz 整表处于可运行但不够理想的边界状态，P95 约 24.91ms。
+- 因真实业务一般只是部分值变化，默认验收重点应放在 `20Hz + 1/4 表` 和 `20Hz + 半表`。
+- `20Hz + 整表` 仅用于验证自动降级是否生效，不作为日常性能目标。
+- 默认方案仍成立：
+
+```text
+defaultFlushIntervalMs = 100
+visibleOnly = true
+renderMode = viewportCanvas
+refreshWhileScrolling = false
+degradedFlushIntervalMs = 200
+autoDegrade = true
+```
+
+建议策略：
+
+- 默认场景：100ms flush。
+- 重点行情字段或用户静止观察时：可试 50ms，但需要单独压测。
+- 滑动中：默认暂停 flush，结束后刷新最新值。
+- 20Hz 整表或 P95 超过 22ms：触发降级，滑动中暂停刷新或降到 200ms。
+
+### 业务接入要求
+
+- 行情回调必须只提交变动 cell。
+- 调度层只合并 dirty cell，不生成整表快照。
+- UI flush 只 drain 当前可见范围内的 dirty cell。
+- 不可见区域只更新缓存，不触发 Canvas 重绘。
+- 合约切换、列配置变化、排序变化这类结构性变更，才允许走一次性重建或全量刷新。
+
+## 2026-05-21 测试列序修正
+
+列序要求：
+
+- 左侧 Call 数据从靠近行权价向外依次为 `指标20 -> 指标1`。
+- 右侧 Put 数据从靠近行权价向外依次为 `指标1 -> 指标20`。
+
+本次代码更新：
+
+- Canvas 表头保持左侧 `指标20 -> 指标1`、右侧 `指标1 -> 指标20`。
+- 测试初始单元格值改为同样的 1 基指标序号：
+  - 左侧靠近行权价显示 `20-*`。
+  - 左侧向外递减到 `1-*`。
+  - 右侧靠近行权价显示 `1-*`。
+  - 右侧向外递增到 `20-*`。
+- Mock 行情更新值也改为同一列序，避免刷新后显示 0 基列号。
+
+验证目标：
+
+- 左侧靠近行权价的第一列显示指标20及对应 `20-*` 数据。
+- 右侧靠近行权价的第一列显示指标1及对应 `1-*` 数据。
+- 横向滑动后列序仍保持一致。
+
+## 2026-05-21 测试页默认档位更新
+
+本次代码更新：
+
+- 测试页默认打开即进入业务推荐配置：
+  - D Canvas。
+  - 20Hz。
+  - 行情变化范围 1/4 表。
+  - B 调度合并。
+  - flush 100ms。
+  - 只刷可见开。
+  - 滑动刷新关。
+  - 强制整表刷新关。
+  - LIVE 探针关。
