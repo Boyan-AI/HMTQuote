@@ -3025,3 +3025,195 @@ common_sideslipview/src/main/ets/components/t_component/canvas/TCanvasComponent.
 
 验证结果：
 
+- `git diff --check` 通过。
+- ArkTS 编译通过，仅保留 `EntryAbility.ets:9` 历史 warn。
+- `PackageHap` 仍因本机 Java Runtime 缺失失败，与代码无关。
+
+## 2026-05-21 阶段 5：合约切换最新价居中
+
+新增需求：
+
+- 每次切换合约后的首次绘制，需要让最新价线定位到表格可视区域正中间。
+- 普通行情刷新不能反复强制回中，否则用户滚动查看其他行时会被打断。
+
+本次代码更新：
+
+- `TCanvasComponent` 新增 `latestPriceAnchorRevision`。
+  - 该字段独立于 `dataRevision`。
+  - 版本变化时，组件根据 `DataView.line.position` 计算 `verticalOffset`，把最新价线定位到当前可视区域中线。
+  - 普通行情刷新只触发重绘，不触发重新定位。
+- `QuoteTableExample` 新增 `latestPriceAnchorRevision` 状态。
+  - 首屏初始化后递增一次，确保首次进入最新价居中。
+  - 合约切换后重建样例数据、递增 `dataRevision`，再递增 `latestPriceAnchorRevision`。
+- `QuoteContractTabs` 新增 `onContractClick(code)` 回调，样例页可真实切换合约激活态。
+- 样例页为不同合约提供不同初始最新价，便于验证切换后的居中定位。
+- `common_sideslipview/README.md` 补充“最新价居中定位”章节。
+
+兼容性说明：
+
+- 未修改 `DataView`、`GestureMonitor`、`TComponent` 对外接口。
+- `latestPriceAnchorRevision` 是可选新增参数，旧业务不传时不会改变原有滚动行为。
+
+验证结果：
+
+- `git diff --check` 通过。
+- ArkTS 编译通过，仅保留 `EntryAbility.ets:9` 历史 warn。
+- `PackageHap` 仍因本机 Java Runtime 缺失失败，与代码无关。
+
+## 2026-05-21 阶段 5：首次进入最新价居中修正
+
+真机反馈：
+
+- 首次进入样例页时，最新价线没有稳定落在表格可视区域中间。
+
+原因判断：
+
+- `Canvas.onReady` 可能早于真实 `onAreaChange` 尺寸回调执行。
+- 首次定位使用了组件默认 viewport 高度。
+- 后续真实 Canvas 高度到达时，`latestPriceAnchorRevision` 已被标记为处理过，导致没有按真实高度重新计算 `verticalOffset`。
+
+本次修正：
+
+- `TCanvasComponent` 记录最近一次执行最新价居中时的 `viewportWidth / viewportHeight`。
+- 即使 `latestPriceAnchorRevision` 没变，只要视口尺寸变化，也会重新执行一次最新价居中。
+- 普通行情刷新仍不会触发重新定位，避免打断用户滚动查看其他行。
+
+验证结果：
+
+- `git diff --check` 通过。
+- ArkTS 编译通过，仅保留 `EntryAbility.ets:9` 历史 warn。
+- `PackageHap` 仍因本机 Java Runtime 缺失失败，与代码无关。
+
+## 2026-05-21 阶段 5：样例行情压强提升
+
+本次按真机验证需要调整样例数据压强：
+
+- `QuoteMockData.ROW_COUNT` 从 24 行提升到 200 行。
+- `QuoteTableExample` 的 mock 行情刷新间隔从 250ms 调整到 50ms，刷新频率提升 5 倍。
+
+说明：
+
+- 本次只调整 entry 样例页数据规模和刷新频率。
+- `common_sideslipview` Canvas 核心组件、增量行情接口和对外接口未变。
+- 200 行 + 50ms 刷新更接近高频报价列表验证场景，可继续观察滚动、合约切换居中和点击跳转在真机上的表现。
+
+验证结果：
+
+- `git diff --check` 通过。
+- ArkTS 编译通过，仅保留 `EntryAbility.ets:9` 历史 warn。
+- `PackageHap` 仍因本机 Java Runtime 缺失失败，与代码无关。
+
+## 2026-05-21 阶段 5：表内数据刷新压强和切换闪动优化
+
+真机反馈：
+
+- 表内数据刷新压强需要再增加 10 倍。
+- 切换合约时最新价线有时会闪一下，像是从上方或下方移动到中间。
+
+本次代码更新：
+
+- `QuoteMockData` 新增 `DELTA_COUNT_PER_TICK = 180`。
+  - 原每批随机刷新 18 个 cell。
+  - 现在每 50ms 刷新 180 个 cell，表内 cell 更新压强提升 10 倍。
+- `TCanvasComponent.redraw()` 在真正调用 renderer 前先执行 `centerLatestPriceLineIfNeeded(false)`。
+  - 即使 `dataRevision` 和 `latestPriceAnchorRevision` 的 watcher 触发顺序不同，实际绘制前也会先完成最新价居中。
+  - 避免合约切换后新数据先按旧滚动位置画一帧，再移动到中间造成闪动。
+- `centerLatestPriceLineIfNeeded` 支持传入 `shouldRequestRedraw`，绘制前定位时不额外排队下一次 redraw。
+- 样例合约切换顺序调整为数据准备完成后先递增 `latestPriceAnchorRevision`，再递增 `dataRevision`。
+
+说明：
+
+- 本次表内刷新压强调整只影响 entry 样例页 mock 数据。
+- 切换闪动优化在 `common_sideslipview` Canvas 组件内完成，保持对外接口兼容。
+
+验证结果：
+
+- `git diff --check` 通过。
+- ArkTS 编译通过，仅保留 `EntryAbility.ets:9` 历史 warn。
+- `PackageHap` 仍因本机 Java Runtime 缺失失败，与代码无关。
+
+## 2026-05-21 阶段 5：纵向滑动手感和合约选中态修正
+
+真机反馈：
+
+- 上下滑动远没有横向滑动顺滑，感觉有阻力。
+- 点击底部合约切换后，选中态没有更新。
+
+本次代码更新：
+
+- `QuoteTableExample` 监听 `GestureMonitor.onScroll / onScrollStop`。
+- 样例页在 Canvas 滚动期间暂停 50ms 高频 mock 数据写入。
+  - 当前样例压强为每 50ms 写入 180 个 cell。
+  - 暂停滚动中的 mock 写入可减少手势期间 UI 线程竞争。
+  - 松手和惯性结束后恢复刷新。
+- `QuoteContractTabs.contractTabs` 改为 `@Prop`，确保父页面状态变更能传入子组件。
+- `QuoteContractTabs` 的 `ForEach` key 加入 active 状态，避免同 code 复用时选中态不刷新。
+
+说明：
+
+- 本次滑动手感优化只影响 entry 样例页 mock 刷新策略。
+- `common_sideslipview` 的核心 Canvas 组件未变。
+- 真实业务接入时也建议滚动期间节流或暂停非关键 UI flush，把接口返回缓存到内存，滚动结束后再刷新可见区域。
+
+验证结果：
+
+- `git diff --check` 通过。
+- ArkTS 编译通过，仅保留 `EntryAbility.ets:9` 历史 warn。
+- `PackageHap` 仍因本机 Java Runtime 缺失失败，与代码无关。
+
+## 2026-05-22 阶段 5：README 业务接入收尾
+
+真机验证通过后，本次做文档收口：
+
+- 将 `common_sideslipview/README.md` 从功能记录整理为业务接入手册。
+- README 重新组织为：
+  - 导出能力。
+  - 兼容性约束。
+  - 快速接入。
+  - 推荐配置。
+  - 真实行情接入。
+  - 刷新规则。
+  - 最新价居中定位。
+  - 点击回调。
+  - 表头切换回调。
+  - 主题色配置。
+  - 接入 checklist。
+  - 完整样例页。
+  - Canvas 文件结构。
+- 明确业务接入关键规则：
+  - 服务端返回 `row / side / col / value / color`。
+  - `QuoteTableDeltaAdapter` 只负责写入 `DataView`，不负责请求和调度。
+  - 普通行情刷新递增 `dataRevision`。
+  - 首次进入、合约切换或业务主动回到最新价时递增 `latestPriceAnchorRevision`。
+  - 滚动中建议缓存或节流 UI 写入，滚动结束后恢复刷新。
+
+本次只调整 README 和报告，不修改运行时代码。
+
+验证结果：
+
+- `git diff --check` 通过。
+- `assembleHap --no-daemon` 完整通过。
+- 本次构建通过 `PackageHap / SignHap / assembleHap`，未再出现本机 Java Runtime 缺失错误。
+
+## 2026-05-22 阶段 5：新增快速汇报文件
+
+本次新增 `docs/quote-table-performance-summary.md`，用于给未参与开发的人快速了解本轮优化结果。
+
+汇报文件覆盖：
+
+- 背景问题。
+- 方案演进。
+- 核心性能结论。
+- 当前交付内容。
+- 业务接入方式。
+- 推荐配置。
+- 已验证交互能力。
+- 接入 checklist。
+- 风险和后续事项。
+
+该文件只做总结，不替代详细方案和完整压测报告。
+
+验证结果：
+
+- `git diff --check` 通过。
+- `assembleHap --no-daemon` 完整通过。
