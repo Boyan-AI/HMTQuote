@@ -38,8 +38,8 @@
       ]
     },
     {
-      "name": "common_sideslipview",
-      "srcPath": "./common_sideslipview",
+      "name": "t_split_list",
+      "srcPath": "./t_split_list",
     }
   ]
 }

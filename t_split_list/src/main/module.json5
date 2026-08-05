@@ -1,6 +1,6 @@
 {
   "module": {
-    "name": "common_sideslipview",
+    "name": "t_split_list",
     "type": "har",
     "deviceTypes": [
       "default"

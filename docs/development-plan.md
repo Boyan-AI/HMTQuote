@@ -8,7 +8,7 @@
 - `docs/quote-table-performance-report.md`：历史压测原始结果和阶段结论。
 - `docs/quote-table-performance-summary.md`：当前性能优化汇报。
 - `docs/tcanvas-business-integration-guide.md`：业务侧接入修改说明。
-- `common_sideslipview/README.md`：组件对外能力和快速接入说明。
+- `t_split_list/README.md`：组件对外能力和快速接入说明。
 
 当前核心目标是稳定交付高频行情表：
 
@@ -31,7 +31,7 @@
 
 ## 模块边界
 
-### common_sideslipview
+### t_split_list
 
 组件库负责提供稳定对外能力：
 
@@ -59,7 +59,7 @@
 
 开发约束：
 
-- 压测能力只放在 `entry`，不要污染 `common_sideslipview` 对外组件库。
+- 压测能力只放在 `entry`，不要污染 `t_split_list` 对外组件库。
 - 示例页应覆盖真实业务关键链路：初始化、合约切换、最新价居中、滚动暂停刷新、单元格点击、主题配置。
 
 ## 业务接入方案

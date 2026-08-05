@@ -127,7 +127,7 @@ AI 辅助组织验证动作：
 
 ### 5.1 Canvas-only 收敛
 
-`common_sideslipview` 当前只支持视口级 Canvas T 型报价实现。对外入口不再暴露 legacy `TComponent`、`TController`、`ScrollController`，压测页也不再保留旧组件模式切换。
+`t_split_list` 当前只支持视口级 Canvas T 型报价实现。对外入口不再暴露 legacy `TComponent`、`TController`、`ScrollController`，压测页也不再保留旧组件模式切换。
 
 ### 5.2 高频链路去响应式
 

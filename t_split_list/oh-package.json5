@@ -1,7 +1,7 @@
 {
-  "name": "common_sideslipview",
+  "name": "t_split_list",
   "version": "1.0.0",
-  "description": "Please describe the basic information.",
+  "description": "面向 HarmonyOS ArkUI 的高性能 T 型分区列表 UI 组件。",
   "main": "Index.ets",
   "author": "",
   "license": "Apache-2.0",

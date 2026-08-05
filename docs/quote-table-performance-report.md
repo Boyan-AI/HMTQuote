@@ -2710,13 +2710,13 @@ visualProbe = false
 - 将主题、颜色、分区配色、涨跌闪烁收敛为可配置 token。
 - 为真实业务接入后补一轮 `20Hz + 部分变动` 回归报告。
 
-## 2026-05-21 阶段 5：common_sideslipview Canvas 组件起步
+## 2026-05-21 阶段 5：t_split_list Canvas 组件起步
 
 本次代码更新：
 
-- 在真实业务组件库 `common_sideslipview` 中新增 `TCanvasComponent`。
+- 在真实业务组件库 `t_split_list` 中新增 `TCanvasComponent`。
 - 新增 `QuoteTablePerfConfig`。
-- 通过 `common_sideslipview/Index.ets` 导出新组件和配置。
+- 通过 `t_split_list/Index.ets` 导出新组件和配置。
 - 未修改现有 `TComponent` 对外签名。
 - 未修改现有 `DataView`、`GestureMonitor` 对外签名。
 
@@ -2750,7 +2750,7 @@ visualProbe = false
   - `TCanvasDataAdapter.ets`：DataView 到 Canvas 显示列序的适配。
   - `QuoteTablePerfConfig.ets`：高性能配置。
   - `TCanvasComponent.ets`：视口级 Canvas 组件。
-- 新增 `common_sideslipview/README.md`：
+- 新增 `t_split_list/README.md`：
   - 导出能力。
   - 兼容性约束。
   - 推荐配置。
@@ -2771,7 +2771,7 @@ visualProbe = false
 - ArkTS 编译通过。
 - `PackageHap` 仍因本机 Java Runtime 缺失失败，不是代码语法问题。
 
-## 2026-05-21 阶段 5：common_sideslipview 文件拆分确认
+## 2026-05-21 阶段 5：t_split_list 文件拆分确认
 
 本次补充：
 
@@ -2793,22 +2793,22 @@ visualProbe = false
 当前文件职责：
 
 ```text
-common_sideslipview/Index.ets
+t_split_list/Index.ets
   导出旧组件、新 Canvas 组件和性能配置。
 
-common_sideslipview/src/main/ets/components/t_component/canvas/QuoteTablePerfConfig.ets
+t_split_list/src/main/ets/components/t_component/canvas/QuoteTablePerfConfig.ets
   高频行情渲染配置。
 
-common_sideslipview/src/main/ets/components/t_component/canvas/TCanvasConstants.ets
+t_split_list/src/main/ets/components/t_component/canvas/TCanvasConstants.ets
   Canvas 常量和手势方向枚举。
 
-common_sideslipview/src/main/ets/components/t_component/canvas/TCanvasDataAdapter.ets
+t_split_list/src/main/ets/components/t_component/canvas/TCanvasDataAdapter.ets
   DataView 到 Canvas 左右列显示顺序的适配。
 
-common_sideslipview/src/main/ets/components/t_component/canvas/TCanvasRenderer.ets
+t_split_list/src/main/ets/components/t_component/canvas/TCanvasRenderer.ets
   纯绘制逻辑。
 
-common_sideslipview/src/main/ets/components/t_component/canvas/TCanvasComponent.ets
+t_split_list/src/main/ets/components/t_component/canvas/TCanvasComponent.ets
   ArkUI 组件、手势、动画和点击透传。
 ```
 
@@ -2820,7 +2820,7 @@ common_sideslipview/src/main/ets/components/t_component/canvas/TCanvasComponent.
 
 ## 2026-05-21 阶段 5：样例页视觉微调
 
-本次代码更新只在 `entry/src/main/ets/pages/QuoteTableExample.ets`，未改 `common_sideslipview` 组件库对外接口。
+本次代码更新只在 `entry/src/main/ets/pages/QuoteTableExample.ets`，未改 `t_split_list` 组件库对外接口。
 
 - 顶部加 28vp 安全区占位，避免主导航贴状态栏。
 - 主导航数据化为 `TopNavItem[]`，期权 tab 用 22 号粗体高亮，其他用 16 号灰字。
@@ -2846,9 +2846,9 @@ common_sideslipview/src/main/ets/components/t_component/canvas/TCanvasComponent.
 - `QuoteTableExample` 把原本只 `console.info` 的点击日志，改为通过 `Router.pushUrl` 跳转到详情页，并附带当前合约与最新价。
 - 路由参数中 `side` 使用 `DATA_POS` 字符串名（`LEFT / RIGHT / CENTER`），方便业务侧直接判断点击侧别。
 - `main_pages.json` 注册 `pages/QuoteDetail`。
-- `common_sideslipview/README.md` 补充「点击跳转链路」章节，列出回调参数和样例详情页路径，便于业务接入。
+- `t_split_list/README.md` 补充「点击跳转链路」章节，列出回调参数和样例详情页路径，便于业务接入。
 
-未改 `common_sideslipview` 对外接口。`TCanvasComponent` 的 `GestureMonitor.onClick(row, side, value)` 签名保持不变。后续如需 col 维度细粒度跳转，可在 `TCanvasComponent` 上新增 API，不影响现有业务。
+未改 `t_split_list` 对外接口。`TCanvasComponent` 的 `GestureMonitor.onClick(row, side, value)` 签名保持不变。后续如需 col 维度细粒度跳转，可在 `TCanvasComponent` 上新增 API，不影响现有业务。
 
 验证结果：
 
@@ -2872,7 +2872,7 @@ common_sideslipview/src/main/ets/components/t_component/canvas/TCanvasComponent.
 
 接口和路由约束：
 
-- `common_sideslipview` 对外接口未变。
+- `t_split_list` 对外接口未变。
 - 样例页和 QuoteDetail 的路由参数结构未变。
 - `main_pages.json` 未变。
 
@@ -2886,13 +2886,13 @@ common_sideslipview/src/main/ets/components/t_component/canvas/TCanvasComponent.
 
 本次代码更新：
 
-- `common_sideslipview` 的 `TCanvasComponent` 新增 `onCellClick(row, side, col, value)` 回调。
+- `t_split_list` 的 `TCanvasComponent` 新增 `onCellClick(row, side, col, value)` 回调。
 - 保留 `GestureMonitor.onClick(row, side, value)` 原签名和原语义，旧回调继续返回该行中间行权价文本。
 - Canvas 点击命中逻辑新增左右两侧真实列索引识别；点击中间行权价列时 `col = -1`。
 - `onCellClick` 的 `value` 返回点击单元格自身文本，方便业务侧按指标级别跳转或埋点。
 - `QuoteTableExample` 改为使用 `onCellClick` 拼装详情页路由参数。
 - `QuoteDetail` 新增 `indicatorName / cellValue` 展示，样例页可验证指标名和值透传。
-- `common_sideslipview/README.md` 更新 Canvas 接入示例和点击跳转链路说明。
+- `t_split_list/README.md` 更新 Canvas 接入示例和点击跳转链路说明。
 
 兼容性说明：
 
@@ -2921,9 +2921,9 @@ common_sideslipview/src/main/ets/components/t_component/canvas/TCanvasComponent.
   - 表头文字色和切换文字色。
   - 四象限兜底色。
 - `TCanvasConstants` 只保留尺寸、字号、手势和动画常量。
-- `common_sideslipview/Index.ets` 导出 `QuoteTableThemeTokens`。
+- `t_split_list/Index.ets` 导出 `QuoteTableThemeTokens`。
 - `QuoteTableExample` 增加主题覆盖示例：最新价线使用品牌蓝，表头使用浅灰底。
-- `common_sideslipview/README.md` 补充主题色配置章节。
+- `t_split_list/README.md` 补充主题色配置章节。
 
 兼容性说明：
 
@@ -2956,9 +2956,9 @@ common_sideslipview/src/main/ets/components/t_component/canvas/TCanvasComponent.
   - `applyCellDelta(dataView, delta)`：写入单个 delta。
   - `applyCellDeltas(dataView, deltas)`：批量写入 delta，返回成功写入数量。
   - `applyLatestPrice(dataView, latestPrice)`：写入最新价并刷新最新价线位置。
-- `common_sideslipview/Index.ets` 导出 `QuoteTableCellDelta / QuoteTableDeltaAdapter`。
+- `t_split_list/Index.ets` 导出 `QuoteTableCellDelta / QuoteTableDeltaAdapter`。
 - `QuoteMockData.applyRandomUpdates` 改为先生成 `QuoteTableCellDelta[]`，再通过 `QuoteTableDeltaAdapter` 批量写入，贴近真实接口返回颜色的接入方式。
-- `common_sideslipview/README.md` 新增“增量行情接入”章节，说明服务端返回颜色的推荐结构和落表方式。
+- `t_split_list/README.md` 新增“增量行情接入”章节，说明服务端返回颜色的推荐结构和落表方式。
 
 接口策略：
 
@@ -2991,7 +2991,7 @@ common_sideslipview/src/main/ets/components/t_component/canvas/TCanvasComponent.
   - 标题使用中间 `layoutWeight(1)` 居中，避免“返回”和“合约详情”贴在一起。
 - 详情页样例合约代码从 `IO2606` 调整为更贴近沪金业务语义的 `AU2606`。
 
-本次未修改 `common_sideslipview` Canvas 核心组件和增量行情接口，仅调整 entry 样例页视觉。
+本次未修改 `t_split_list` Canvas 核心组件和增量行情接口，仅调整 entry 样例页视觉。
 
 验证结果：
 
@@ -3015,7 +3015,7 @@ common_sideslipview/src/main/ets/components/t_component/canvas/TCanvasComponent.
   - `verticalScrollSensitivity` 默认 `1.18`，改善纵向滑动阻力偏强的问题。
   - `horizontalScrollSensitivity` 默认 `1.0`，保留横向原手感。
 - `QuoteTableExample` 增加 `onHeaderSwitchClick` 样例回调。
-- `common_sideslipview/README.md` 补充表头切换回调和滚动手感配置说明。
+- `t_split_list/README.md` 补充表头切换回调和滚动手感配置说明。
 
 兼容性说明：
 
@@ -3047,7 +3047,7 @@ common_sideslipview/src/main/ets/components/t_component/canvas/TCanvasComponent.
   - 合约切换后重建样例数据、递增 `dataRevision`，再递增 `latestPriceAnchorRevision`。
 - `QuoteContractTabs` 新增 `onContractClick(code)` 回调，样例页可真实切换合约激活态。
 - 样例页为不同合约提供不同初始最新价，便于验证切换后的居中定位。
-- `common_sideslipview/README.md` 补充“最新价居中定位”章节。
+- `t_split_list/README.md` 补充“最新价居中定位”章节。
 
 兼容性说明：
 
@@ -3094,7 +3094,7 @@ common_sideslipview/src/main/ets/components/t_component/canvas/TCanvasComponent.
 说明：
 
 - 本次只调整 entry 样例页数据规模和刷新频率。
-- `common_sideslipview` Canvas 核心组件、增量行情接口和对外接口未变。
+- `t_split_list` Canvas 核心组件、增量行情接口和对外接口未变。
 - 200 行 + 50ms 刷新更接近高频报价列表验证场景，可继续观察滚动、合约切换居中和点击跳转在真机上的表现。
 
 验证结果：
@@ -3124,7 +3124,7 @@ common_sideslipview/src/main/ets/components/t_component/canvas/TCanvasComponent.
 说明：
 
 - 本次表内刷新压强调整只影响 entry 样例页 mock 数据。
-- 切换闪动优化在 `common_sideslipview` Canvas 组件内完成，保持对外接口兼容。
+- 切换闪动优化在 `t_split_list` Canvas 组件内完成，保持对外接口兼容。
 
 验证结果：
 
@@ -3152,7 +3152,7 @@ common_sideslipview/src/main/ets/components/t_component/canvas/TCanvasComponent.
 说明：
 
 - 本次滑动手感优化只影响 entry 样例页 mock 刷新策略。
-- `common_sideslipview` 的核心 Canvas 组件未变。
+- `t_split_list` 的核心 Canvas 组件未变。
 - 真实业务接入时也建议滚动期间节流或暂停非关键 UI flush，把接口返回缓存到内存，滚动结束后再刷新可见区域。
 
 验证结果：
@@ -3165,7 +3165,7 @@ common_sideslipview/src/main/ets/components/t_component/canvas/TCanvasComponent.
 
 真机验证通过后，本次做文档收口：
 
-- 将 `common_sideslipview/README.md` 从功能记录整理为业务接入手册。
+- 将 `t_split_list/README.md` 从功能记录整理为业务接入手册。
 - README 重新组织为：
   - 导出能力。
   - 兼容性约束。

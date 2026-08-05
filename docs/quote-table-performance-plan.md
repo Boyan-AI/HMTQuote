@@ -33,7 +33,7 @@
 
 ### entry 压测工程
 
-性能优化必须先有可重复的压测入口。测试代码放在 `entry` 目录，不放在 `common_sideslipview` 组件库中。
+性能优化必须先有可重复的压测入口。测试代码放在 `entry` 目录，不放在 `t_split_list` 组件库中。
 
 建议新增：
 
@@ -947,7 +947,7 @@ for row in dirtyRows:
 阶段 2   ：行情缓存与批量调度（33ms / 100ms / 200ms flush 对照）
 阶段 3   ：可见区域刷新（数据只刷可见）
 阶段 4   ：视口级 Canvas 方案验证并确认主路线
-阶段 5   ：落地 common_sideslipview，新增 TCanvasComponent，不破坏旧接口
+阶段 5   ：落地 t_split_list，新增 TCanvasComponent，不破坏旧接口
 阶段 6   ：真实业务接入、交互补齐和主题配置
 阶段 7   ：压测调参、自动降级和回归基线固化
 ```
@@ -958,7 +958,7 @@ for row in dirtyRows:
 
 ## 当前业务组件开发约束
 
-`common_sideslipview` 是真实业务组件目录，后续开发遵守以下约束：
+`t_split_list` 是真实业务组件目录，后续开发遵守以下约束：
 
 - 保留 `TComponent`、`DataView`、`GestureMonitor`、`TController` 等现有对外能力。
 - 新能力优先新增导出，不直接破坏旧接口。
@@ -970,4 +970,4 @@ for row in dirtyRows:
   - 数据适配在 `TCanvasDataAdapter`。
   - 常量在 `TCanvasConstants`。
 - 新增类和新增方法必须写中文注释。
-- 示例和接入说明维护在 `common_sideslipview/README.md` 与 `entry/src/main/ets/pages/QuoteTableExample.ets`。
+- 示例和接入说明维护在 `t_split_list/README.md` 与 `entry/src/main/ets/pages/QuoteTableExample.ets`。

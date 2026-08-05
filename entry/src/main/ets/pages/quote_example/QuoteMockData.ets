@@ -5,7 +5,7 @@ import {
   HeaderItem,
   QuoteTableCellDelta,
   QuoteTableDeltaAdapter
-} from 'common_sideslipview';
+} from 't_split_list';
 
 /**
  * 样例页 mock 数据辅助类。

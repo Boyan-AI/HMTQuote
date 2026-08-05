@@ -1,10 +1,10 @@
-# HMTQuote
+# TSplitList
 
-HMTQuote 是一个面向 HarmonyOS 的 T 型报价示例工程，核心能力由 `common_sideslipview` HAR 提供。主工程用于展示业务接入、交互效果和性能验证，不作为正式应用发布模板。
+TSplitList 是一个面向 HarmonyOS ArkUI 的高性能 T 型分区列表 UI 组件，核心能力由 `t_split_list` HAR 提供。主工程以期权、期货报价为示例，用于展示业务接入、交互效果和性能验证，不作为正式应用发布模板。
 
 ## 核心能力
 
-- Canvas 视口级 T 型报价渲染
+- Canvas 视口级 T 型分区列表渲染
 - 行情增量更新与高频刷新调度
 - 横向、纵向滚动和父容器手势协同
 - 最新价定位、排序、主题和点击回调
@@ -12,7 +12,7 @@ HMTQuote 是一个面向 HarmonyOS 的 T 型报价示例工程，核心能力由
 
 ## 项目结构
 
-- `common_sideslipview/`：长期维护的 HAR 组件库
+- `t_split_list/`：长期维护的 HAR 组件库
 - `entry/`：业务接入示例和性能测试应用
 - `docs/`：架构、性能报告和业务接入资料
 
@@ -28,7 +28,7 @@ hvigorw assembleHap --no-daemon
 
 ## 文档
 
-- [HAR 接入说明](common_sideslipview/README.md)
-- [组件架构](docs/common-sideslipview-architecture.md)
+- [HAR 接入说明](t_split_list/README.md)
+- [组件架构](docs/t-split-list-architecture.md)
 - [业务接入指南](docs/tcanvas-business-integration-guide.md)
 - [性能优化摘要](docs/quote-table-performance-summary.md)

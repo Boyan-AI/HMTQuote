@@ -1,4 +1,4 @@
-import { DATA_POS } from 'common_sideslipview';
+import { DATA_POS } from 't_split_list';
 import { PerfDistribution, PerfScenario, QuoteCellUpdate, VisibleRange } from './PerfScenario';
 import { nowMs, PerfStats } from './PerfStats';
 import { displaySync } from '@kit.ArkGraphics2D';

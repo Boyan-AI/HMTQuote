@@ -1,5 +1,5 @@
 import { describe, beforeAll, beforeEach, afterEach, afterAll, it, expect } from '@ohos/hypium';
-import { TCanvasScrollRelay } from 'common_sideslipview';
+import { TCanvasScrollRelay } from 't_split_list';
 
 export default function localUnitTest() {
   describe('localUnitTest', () => {

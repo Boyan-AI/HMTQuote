@@ -1,6 +1,6 @@
-# common_sideslipview
+# TSplitList
 
-`common_sideslipview` 提供 T 型期权/期货报价表组件。
+`t_split_list` 是面向 HarmonyOS ArkUI 的高性能 T 型分区列表 UI 组件，可用于期权、期货报价等左右分区联动场景。
 
 当前只支持视口级 Canvas 高性能组件：
 
@@ -43,7 +43,7 @@ import {
   HeaderItem,
   QuoteTablePerfConfig,
   TCanvasComponent
-} from 'common_sideslipview';
+} from 't_split_list';
 
 @Component
 struct QuoteTableDemo {
@@ -170,7 +170,7 @@ import {
   DataView,
   QuoteTableCellDelta,
   QuoteTableDeltaAdapter
-} from 'common_sideslipview';
+} from 't_split_list';
 
 @State private dataView: DataView = new DataView();
 @State private dataRevision: number = 0;

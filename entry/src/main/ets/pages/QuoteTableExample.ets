@@ -4,7 +4,7 @@ import {
   GestureMonitor,
   QuoteTablePerfConfig,
   TCanvasComponent
-} from 'common_sideslipview';
+} from 't_split_list';
 import {
   BottomNavItem,
   ContractTabItem,

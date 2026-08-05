@@ -1,4 +1,4 @@
-// common_sideslipview T 型报价库对外入口。
+// TSplitList T 型分区列表 UI 组件库对外入口。
 // 后续只支持 Canvas 模式：TCanvasComponent 通过普通数据对象 + 显式 revision 驱动重绘。
 // 共享：data_manage/ 数据模型、GestureMonitor、util/Constant 枚举与尺寸。
 

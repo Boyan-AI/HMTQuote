@@ -7,6 +7,6 @@
   "license": "",
   "dependencies": {
     "libentry.so": "file:./src/main/cpp/types/libentry",
-    "common_sideslipview": "file:../common_sideslipview",
+    "t_split_list": "file:../t_split_list",
   }
 }

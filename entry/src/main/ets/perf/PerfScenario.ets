@@ -1,4 +1,4 @@
-import { DATA_POS } from 'common_sideslipview';
+import { DATA_POS } from 't_split_list';
 
 export enum PerfDistribution {
   FullRandom,

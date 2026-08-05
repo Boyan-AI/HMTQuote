@@ -2,7 +2,7 @@ import {
   DATA_POS,
   HeaderConfig,
   HeaderItem
-} from 'common_sideslipview';
+} from 't_split_list';
 import { MockQuoteFeed } from '../perf/MockQuoteFeed';
 import {
   distributionName,

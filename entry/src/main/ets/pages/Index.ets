@@ -15,14 +15,14 @@ class EntryPageItem {
 /**
  * entry 首页。
  *
- * 提供性能测试页和 common_sideslipview 业务样例页入口，方便调试和验收。
+ * 提供性能测试页和 t_split_list 业务样例页入口，方便调试和验收。
  */
 @Entry
 @Component
 struct Index {
   private readonly pages: EntryPageItem[] = [
     new EntryPageItem('性能测试', '进入行情表压测页，验证刷新频率、可见刷新和 Canvas 性能。', 'pages/PerfTest', 'Perf'),
-    new EntryPageItem('业务样例', '进入 common_sideslipview Canvas T 型报价样例页。', 'pages/QuoteTableExample', 'Example')
+    new EntryPageItem('业务样例', '进入 t_split_list Canvas T 型报价样例页。', 'pages/QuoteTableExample', 'Example')
   ];
 
   /**

@@ -2,7 +2,7 @@
 
 ## 一句话结论
 
-本轮优化已将 T 型期权/期货行情表从“每个 cell 一个 ArkUI 组件高频刷新”推进到 `common_sideslipview` 内的视口级 Canvas 高性能组件。核心路径是：行情增量写入缓存，Canvas 只绘制当前视口，滚动期间暂停或节流 UI flush，合约切换时最新价线居中。
+本轮优化已将 T 型期权/期货行情表从“每个 cell 一个 ArkUI 组件高频刷新”推进到 `t_split_list` 内的视口级 Canvas 高性能组件。核心路径是：行情增量写入缓存，Canvas 只绘制当前视口，滚动期间暂停或节流 UI flush，合约切换时最新价线居中。
 
 ## 背景问题
 
@@ -22,7 +22,7 @@
 | C 只刷可见 | 不可见行留在缓存，只 flush 可见区域 | 写入量下降，但组件结构仍有长帧 |
 | D Canvas 原型 | 去掉 per-cell ArkUI 组件，改 Canvas 绘制 | flush 成本大幅下降，路线成立 |
 | D1 视口级 Canvas | 只绘制可见行，合并 redraw | P95 稳定进入 16.7ms 预算内，draw 成本低 |
-| 业务组件落地 | 在 `common_sideslipview` 新增 `TCanvasComponent` | 已完成样例、README、点击、主题、增量接入、合约切换等业务链路 |
+| 业务组件落地 | 在 `t_split_list` 新增 `TCanvasComponent` | 已完成样例、README、点击、主题、增量接入、合约切换等业务链路 |
 
 ## 核心性能结论
 
@@ -40,7 +40,7 @@
 
 ## 当前交付内容
 
-### common_sideslipview
+### t_split_list
 
 新增视口级 Canvas 组件和配套能力：
 
@@ -52,7 +52,7 @@
 - `TCanvasDataAdapter`：`DataView` 到 Canvas 显示列序适配。
 - `TCanvasConstants`：Canvas 尺寸、手势和动画常量。
 
-已通过 `common_sideslipview/Index.ets` 导出新增能力。
+已通过 `t_split_list/Index.ets` 导出新增能力。
 
 ### entry 样例
 
@@ -75,7 +75,7 @@
 
 ### 文档
 
-- `common_sideslipview/README.md`：业务接入手册。
+- `t_split_list/README.md`：业务接入手册。
 - `docs/quote-table-performance-plan.md`：优化方案和测试计划。
 - `docs/quote-table-performance-report.md`：阶段性压测数据、方案变更和真机反馈记录。
 - `docs/quote-table-performance-summary.md`：本汇报文件。
@@ -171,4 +171,4 @@ config.horizontalScrollSensitivity = 1.0;
 
 - 详细方案：`docs/quote-table-performance-plan.md`
 - 详细压测和变更记录：`docs/quote-table-performance-report.md`
-- 业务接入手册：`common_sideslipview/README.md`
+- 业务接入手册：`t_split_list/README.md`

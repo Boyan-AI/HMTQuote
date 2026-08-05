@@ -1,17 +1,17 @@
-# common_sideslipview 组件库说明
+# TSplitList 组件库说明
 
-本文档说明 `common_sideslipview` 的模块结构、Canvas T 型报价绘制链路、数据刷新协议和后续扩展注意事项。目标读者是后续维护或接入该组件库的研发人员。
+本文档说明 `t_split_list` 的模块结构、Canvas T 型分区列表绘制链路、数据刷新协议和后续扩展注意事项。目标读者是后续维护或接入该组件库的研发人员。
 
 ## 1. 模块定位
 
-`common_sideslipview` 是一个 HAR 组件库，当前只支持视口级 Canvas T 型报价实现：
+`t_split_list` 是一个 HAR 组件库，当前只支持视口级 Canvas T 型报价实现：
 
 - `canvas/`：视口级 Canvas 实现，包括 `TCanvasComponent`、`TCanvasRenderer`、配置、主题和增量适配器。
 - `data_manage/`：Canvas 数据模型，包括 `DataView`、`RowData`、`ListItemData`、`LineData`、`HeaderConfig`。
 - `GestureMonitor`：点击和滚动回调桥接对象，作为普通对象传给 Canvas 组件。
 - `util/Constant`：共享尺寸和枚举，Canvas 使用其中的行高、列宽、方向枚举。
 
-对外导出集中在 `common_sideslipview/Index.ets`。新增能力应优先从这里导出，避免业务直接依赖内部路径。
+对外导出集中在 `t_split_list/Index.ets`。新增能力应优先从这里导出，避免业务直接依赖内部路径。
 
 ## 2. 关键文件职责
 
