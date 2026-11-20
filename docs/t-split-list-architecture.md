@@ -201,7 +201,7 @@ Canvas 不能直接稳定使用 ArkUI `$r(...)` 资源色，所以主题默认�
 暗黑模式由 `TCanvasComponent.darkMode` 控制：
 
 - `false`：使用业务传入 config 的亮色主题基线副本。
-- `true`：使用 `QuoteTableThemeTokens.dark()`。
+- `true`：使用 `QuoteTableThemeTokens.dark()`，并保留亮色基线中非默认的 `sortActiveColor`，让业务排序品牌色在明暗模式通用。未定制时仍使用暗色默认蓝。
 
 业务如果需要品牌色定制，应在组件首次出现前修改 `config.themeTokens`。运行期大规模替换配置对象不属于当前稳定协议，后续如有需要应增加显式 `configRevision` 或专门 watcher。
 

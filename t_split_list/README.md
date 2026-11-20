@@ -257,6 +257,8 @@ TCanvasComponent({
 
 `QuoteTablePerfConfig.themeTokens` 默认提供一套明色主题。
 
+在组件首次出现前设置 `config.themeTokens.sortActiveColor = '#ffe93030'`，可让排序激活箭头在明暗模式下均使用品牌红。未定制时使用各模式默认蓝色；其他主题字段仍按原有明暗主题规则处理。
+
 可覆盖的常用字段：
 
 - `callColor`：Call 标题色。

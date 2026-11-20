@@ -57,6 +57,21 @@ export class QuoteTableThemeTokens {
   }
 
   /**
+   * 从亮色基线解析当前主题；业务定制的排序激活色在明暗模式下通用。
+   * 未定制时仍使用各模式默认蓝色，每次返回副本，避免切换污染业务基线。
+   */
+  resolve(darkMode: boolean): QuoteTableThemeTokens {
+    if (!darkMode) {
+      return this.clone();
+    }
+    let next = QuoteTableThemeTokens.dark();
+    if (this.sortActiveColor !== QuoteTableThemeTokens.light().sortActiveColor) {
+      next.sortActiveColor = this.sortActiveColor;
+    }
+    return next;
+  }
+
+  /**
    * 复制主题色，避免业务侧和组件内部共享同一个可变对象。
    */
   clone(): QuoteTableThemeTokens {

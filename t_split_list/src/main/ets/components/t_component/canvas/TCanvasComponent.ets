@@ -80,7 +80,7 @@ export struct TCanvasComponent {
   /**
    * 暗黑模式开关。外部改变该值即切换明/暗主题并重绘整张表格。
    *
-   * false=亮色（沿用业务传入 config 的主题定制），true=暗黑（使用设计稿暗黑色值）。
+   * false=亮色（沿用业务主题），true=暗黑（设计稿暗黑色值，保留业务定制排序激活色）。
    */
   @Prop @Watch('handleThemeChanged') darkMode: boolean = false;
   /**
@@ -183,11 +183,10 @@ export struct TCanvasComponent {
   }
 
   /**
-   * 根据 darkMode 选用暗黑/亮色基线主题，并同步 Canvas 背景色。
+   * 根据 darkMode 解析主题，保留业务排序品牌色，并同步 Canvas 背景色。
    */
   private applyTheme(): void {
-    let theme = this.darkMode ? QuoteTableThemeTokens.dark() :
-      (this.lightThemeBaseline ?? QuoteTableThemeTokens.light()).clone();
+    let theme = (this.lightThemeBaseline ?? QuoteTableThemeTokens.light()).resolve(this.darkMode);
     this.config.themeTokens = theme;
     this.canvasBackgroundColor = theme.canvasBackgroundColor;
   }

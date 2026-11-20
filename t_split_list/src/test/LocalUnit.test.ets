@@ -8,6 +8,7 @@ import { TCanvasScrollRelay } from '../main/ets/components/t_component/canvas/TC
 import { TCanvasTapGuard } from '../main/ets/components/t_component/canvas/TCanvasTapGuard';
 import { LegacyGestureClickGate } from '../main/ets/components/t_component/legacy/LegacyGestureClickGate';
 import { DATA_POS } from '../main/ets/components/t_component/util/Constant';
+import { QuoteTableThemeTokens } from '../main/ets/components/t_component/canvas/QuoteTableThemeTokens';
 
 export default function localUnitTest() {
   describe('localUnitTest', () => {
@@ -29,6 +30,29 @@ export default function localUnitTest() {
     afterAll(() => {
       // Presets a clear action, which is performed after all test cases of the test suite end.
       // This API supports only one parameter: clear action function.
+    });
+    // 验证未定制时仍使用明暗各自的默认排序颜色。
+    it('defaultSortColorFollowsTheme', 0, () => {
+      let baseline = QuoteTableThemeTokens.light();
+      expect(baseline.resolve(false).sortActiveColor).assertEqual('#ff2e58ff');
+      expect(baseline.resolve(true).sortActiveColor).assertEqual('#ff527dff');
+    });
+    // 验证暗色首次解析、反复切换及输出修改均不会丢失品牌色或污染基线。
+    it('brandSortColorSurvivesThemeSwitches', 0, () => {
+      let baseline = QuoteTableThemeTokens.light();
+      baseline.sortActiveColor = '#ffe93030';
+      let dark = baseline.resolve(true);
+      expect(dark.sortActiveColor).assertEqual('#ffe93030');
+      expect(dark.canvasBackgroundColor).assertEqual('#ff1c1c1c');
+      expect(dark.headerTextColor).assertEqual('#66ffffff');
+      expect(dark.sortInactiveColor).assertEqual('#ff3b3b3b');
+      dark.sortActiveColor = '#ff000000';
+      let light = baseline.resolve(false);
+      expect(light.sortActiveColor).assertEqual('#ffe93030');
+      expect(light.canvasBackgroundColor).assertEqual('#ffffffff');
+      light.sortActiveColor = '#ffffffff';
+      expect(baseline.resolve(true).sortActiveColor).assertEqual('#ffe93030');
+      expect(baseline.sortActiveColor).assertEqual('#ffe93030');
     });
     it('assertContain', 0, () => {
       // Defines a test case. This API supports three parameters: test case name, filter parameter, and test case function.
